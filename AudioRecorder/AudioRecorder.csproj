@@ -139,6 +139,9 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Icons\refresh.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\NAudio.Lame.2.1.0\build\NAudio.Lame.targets" Condition="Exists('..\packages\NAudio.Lame.2.1.0\build\NAudio.Lame.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
