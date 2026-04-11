@@ -101,6 +101,17 @@
                                    Stroke="{DynamicResource Dark3}"
                                    RadiusX="5" RadiusY="5" Grid.Row="1"/>
 
+                        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled"
+                                      VerticalScrollBarVisibility="Hidden">
+                            <StackPanel Margin="20,15,15,0">
+
+                                <local:DeviceControl IsSpeaker="True" DeviceName="Realtek Speakers" Volume="100%"/>
+                                <local:DeviceControl IsSpeaker="False" DeviceName="Sony headphones microphone" Volume="20%"/>
+                                <local:DeviceControl IsHighlighted="True"/>
+
+                            </StackPanel>
+                        </ScrollViewer>
+
                     </Grid>
 
                     <Grid Grid.Column="1">
@@ -161,16 +172,13 @@
                 <WrapPanel Grid.Row="1" Margin="20,10" VerticalAlignment="Bottom">
 
                     <Button Content="Start" Width="70" Margin="0,0,5,0"
-                            Background="#FF9AA0FD" FontStyle="Italic"
-                            FontWeight="Bold"/>
+                            Background="#FF9AA0FD" FontWeight="Medium"/>
 
                     <Button Content="Stop" Width="70" Margin="0,0,50,0"
-                            Background="#FFE48585" FontWeight="Bold"
-                            FontStyle="Italic"/>
+                            Background="#FFE48585" FontWeight="Medium"/>
 
                     <Button Content="Open" Width="70" Margin="0,0,5,0"
-                            Background="#FFC3AB69" FontWeight="Bold"
-                            FontStyle="Italic"/>
+                            Background="#FFC3AB69" FontWeight="Medium"/>
 
                 </WrapPanel>
 
