@@ -3,8 +3,12 @@ using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
 using NAudio.Wave;
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
@@ -21,11 +25,16 @@ namespace AudioRecorder
         private WaveFileWriter _waveWriter;
         private MMDeviceEnumerator _deviceEnumerator;
 
+        public ObservableCollection<DeviceControl> Devices = new ObservableCollection<DeviceControl>();
+
 
         public MainWindow()
         {
             InitializeComponent();
-            //LoadAudioDevices();
+
+            devicesPanel.ItemsSource = Devices;
+            _deviceEnumerator = new MMDeviceEnumerator();
+            LoadAudioDevices();
         }
 
         #region RESTORE DEFAULT WINDOW ANIMATIONS
@@ -107,27 +116,39 @@ namespace AudioRecorder
 
 
 
-
         private void LoadAudioDevices()
         {
-            _deviceEnumerator = new MMDeviceEnumerator();
-            var devices = _deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active);
-            //cmbOutputDevices.ItemsSource = devices.ToList();
+            List<MMDevice> devices = _deviceEnumerator.EnumerateAudioEndPoints(DataFlow.All, DeviceState.Active).ToList();
+            Devices.Clear();
 
-            try
+            foreach (MMDevice d in devices)
             {
-                var defaultDevice = _deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Console);
-                //cmbOutputDevices.SelectedItem = devices.FirstOrDefault(d => d.ID == defaultDevice.ID);
-
-                //if (cmbOutputDevices.SelectedItem == null && devices.Count > 0)
-                    //cmbOutputDevices.SelectedIndex = 0;
-            }
-            catch
-            {
-                //if (cmbOutputDevices.Items.Count == 0)
-                    //txtStatus.Text = "Output devices is not found...";
+                DeviceControl control = new DeviceControl()
+                {
+                    IsSpeaker = (d.DataFlow == DataFlow.Render),
+                    DeviceName = d.FriendlyName,
+                    Volume = Math.Floor(d.AudioEndpointVolume.MasterVolumeLevelScalar * 100).ToString() + '%'
+                };
+                control.Click += Device_MouseLeftButtonDown;
+                Devices.Add(control);
             }
         }
+
+        private void RefreshDevices_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            LoadAudioDevices();
+        }
+
+        private void Device_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            foreach (DeviceControl d in Devices)
+                d.IsHighlighted = false;
+            
+            ((DeviceControl)sender).IsHighlighted = true;
+        }
+
+
+
 
         private void btnRecord_Click(object sender, RoutedEventArgs e)
         {

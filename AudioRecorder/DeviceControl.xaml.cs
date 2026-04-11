@@ -1,9 +1,8 @@
 ﻿using System.Windows.Controls;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Windows;
-using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Input;
 
 namespace AudioRecorder
 {
@@ -13,10 +12,9 @@ namespace AudioRecorder
     public partial class DeviceControl : UserControl, INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
-        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        public void OnPropertyChanged([CallerMemberName] string prop = "")
         {
-            if (PropertyChanged != null)
-                PropertyChanged.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
         }
 
 
@@ -24,6 +22,10 @@ namespace AudioRecorder
         private string _deviceName = "Unknown device";
         private string _volume = "0%";
         private bool _isHighlighted = false;
+
+        public event MouseButtonEventHandler Click;
+        private void InvokeClickEvent(object sender, MouseButtonEventArgs e) => Click?.Invoke(this, e);
+
 
         public bool IsSpeaker
         {
@@ -80,49 +82,11 @@ namespace AudioRecorder
         public string DeviceIconPath => IsSpeaker ? "/Icons/speaker.png" : "/Icons/microphone.png";
 
 
-        public static readonly DependencyProperty IsSpeakerProperty = DependencyProperty.Register(
-            nameof(IsSpeaker), typeof(bool), typeof(DeviceControl), new PropertyMetadata(true, OnIsSpeakerPropertyChanged));
-
-        public static readonly DependencyProperty DeviceNameProperty = DependencyProperty.Register(
-            nameof(DeviceName), typeof(string), typeof(DeviceControl), new PropertyMetadata("Unknown device", OnDeviceNamePropertyChanged));
-
-        public static readonly DependencyProperty VolumeProperty = DependencyProperty.Register(
-            nameof(Volume), typeof(string), typeof(DeviceControl), new PropertyMetadata("0%", OnVolumePropertyChanged));
-
-
-        private static void OnIsSpeakerPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        {
-            if (d is DeviceControl control)
-                control.IsSpeaker = (bool)e.NewValue;
-        }
-
-        private static void OnDeviceNamePropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        {
-            if (d is DeviceControl control)
-                control.DeviceName = (string)e.NewValue;
-        }
-
-        private static void OnVolumePropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        {
-            if (d is DeviceControl control)
-                control.Volume = (string)e.NewValue;
-        }
-
-
-        public static readonly RoutedEvent ClickEvent = EventManager.RegisterRoutedEvent(
-            nameof(Click), RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(DeviceControl));
-
-        public event RoutedEventHandler Click
-        {
-            add => AddHandler(ClickEvent, value);
-            remove => RemoveHandler(ClickEvent, value);
-        }
-
-
         public DeviceControl()
         {
             InitializeComponent();
             DataContext = this;
+            bgRect.MouseLeftButtonDown += InvokeClickEvent;
         }
 
         private void ToggleSelection(bool value)
@@ -131,11 +95,13 @@ namespace AudioRecorder
             {
                 IsHighlighted = value;
                 bgRect.Stroke = TryFindResource("Accent") as SolidColorBrush ?? new SolidColorBrush(Colors.BlueViolet);
+                bgRect.Fill = TryFindResource("Dark3") as SolidColorBrush ?? new SolidColorBrush(Colors.LightGray);
             }
             else
             {
                 IsHighlighted = value;
                 bgRect.Stroke = TryFindResource("Light2") as SolidColorBrush ?? new SolidColorBrush(Colors.LightSlateGray);
+                bgRect.Fill = TryFindResource("Dark2") as SolidColorBrush ?? new SolidColorBrush(Colors.DarkGray);
             }
         }
     }

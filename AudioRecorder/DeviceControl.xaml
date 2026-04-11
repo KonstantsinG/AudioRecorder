@@ -18,15 +18,15 @@
         <Rectangle Grid.ColumnSpan="3" Fill="{DynamicResource Dark2}"
                    StrokeThickness="1" RadiusX="4" RadiusY="4"
                    Stroke="{DynamicResource Light2}" x:Name="bgRect"
-                   Width="Auto" Height="Auto" IsHitTestVisible="False"/>
+                   Width="Auto" Height="Auto"/>
 
-        <Image Source="{Binding DeviceIconPath, UpdateSourceTrigger=PropertyChanged, Mode=OneWay}"
+        <Image Source="{Binding DeviceIconPath, RelativeSource={RelativeSource AncestorType=UserControl}}"
                Width="20" Height="20" IsHitTestVisible="False"/>
 
         <TextBlock Grid.Column="1" Foreground="{DynamicResource Light0}"
-                   Text="{Binding DeviceName, UpdateSourceTrigger=PropertyChanged, Mode=OneWay}"
+                   Text="{Binding DeviceName, RelativeSource={RelativeSource AncestorType=UserControl}}"
                    VerticalAlignment="Center" FontWeight="Light" FontSize="12"
-                   IsHitTestVisible="False"/>
+                   IsHitTestVisible="False" Cursor=""/>
 
         <Image Source="/Icons/volume.png" Width="15" Height="15"
                Grid.Column="2" HorizontalAlignment="Left"
@@ -35,7 +35,7 @@
         <TextBlock Grid.Column="2" Foreground="{DynamicResource Light0}"
                    VerticalAlignment="Center" FontWeight="Light" FontSize="12"
                    Margin="22,0,0,0" IsHitTestVisible="False"
-                   Text="{Binding Volume, UpdateSourceTrigger=PropertyChanged, Mode=OneWay}"/>
+                   Text="{Binding Volume, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
 
     </Grid>
     

@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:AudioRecorder"
+        xmlns:local="clr-namespace:AudioRecorder" d:DataContext="{d:DesignInstance Type=local:DeviceControl}"
         mc:Ignorable="d" WindowStyle="None"
         Title="AudioRecorder" Height="540" Width="960"
         Background="{DynamicResource Accent}"
@@ -91,7 +91,7 @@
                             <TextBlock Foreground="{DynamicResource Light1}"
                                        Text="Available devices"  FontWeight="Light"/>
 
-                            <Image Source="/Icons/refresh.png"
+                            <Image Source="/Icons/refresh.png" MouseLeftButtonDown="RefreshDevices_MouseLeftButtonDown"
                                    Width="15" Height="15" Margin="10,0"/>
 
                         </StackPanel>
@@ -103,13 +103,11 @@
 
                         <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled"
                                       VerticalScrollBarVisibility="Hidden">
-                            <StackPanel Margin="20,15,15,0">
+                            <ItemsControl Margin="20,15,15,0" x:Name="devicesPanel">
 
-                                <local:DeviceControl IsSpeaker="True" DeviceName="Realtek Speakers" Volume="100%"/>
-                                <local:DeviceControl IsSpeaker="False" DeviceName="Sony headphones microphone" Volume="20%"/>
-                                <local:DeviceControl IsHighlighted="True"/>
+                                
 
-                            </StackPanel>
+                            </ItemsControl>
                         </ScrollViewer>
 
                     </Grid>
