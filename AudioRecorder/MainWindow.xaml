@@ -91,8 +91,66 @@
                             <TextBlock Foreground="{DynamicResource Light1}"
                                        Text="Available devices"  FontWeight="Light"/>
 
-                            <Image Source="/Icons/refresh.png" MouseLeftButtonDown="RefreshDevices_MouseLeftButtonDown"
-                                   Width="15" Height="15" Margin="10,0"/>
+                            <Button Width="15" Height="15" Margin="10,0"
+                                    Click="RefreshDevices_Click"
+                                    Cursor="Hand"
+                                    Focusable="False">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Image x:Name="icon" 
+                                               Source="/Icons/refresh.png" 
+                                               Width="15" Height="15"
+                                               RenderTransformOrigin="0.5,0.5">
+                                            <Image.RenderTransform>
+                                                <TransformGroup>
+                                                    <RotateTransform x:Name="rotation" Angle="0"/>
+                                                    <ScaleTransform x:Name="scale" ScaleX="1" ScaleY="1"/>
+                                                </TransformGroup>
+                                            </Image.RenderTransform>
+                                        </Image>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Trigger.EnterActions>
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetName="rotation"
+                                                                             Storyboard.TargetProperty="Angle"
+                                                                             To="-180"
+                                                                             Duration="0:0:0.15"/>
+                                                            <DoubleAnimation Storyboard.TargetName="scale"
+                                                                             Storyboard.TargetProperty="ScaleX"
+                                                                             To="0.7"
+                                                                             Duration="0:0:0.1"/>
+                                                            <DoubleAnimation Storyboard.TargetName="scale"
+                                                                             Storyboard.TargetProperty="ScaleY"
+                                                                             To="0.7"
+                                                                             Duration="0:0:0.1"/>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </Trigger.EnterActions>
+                                                <Trigger.ExitActions>
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetName="rotation"
+                                                                             Storyboard.TargetProperty="Angle"
+                                                                             To="0"
+                                                                             Duration="0:0:0.1"/>
+                                                            <DoubleAnimation Storyboard.TargetName="scale"
+                                                                             Storyboard.TargetProperty="ScaleX"
+                                                                             To="1"
+                                                                             Duration="0:0:0.1"/>
+                                                            <DoubleAnimation Storyboard.TargetName="scale"
+                                                                             Storyboard.TargetProperty="ScaleY"
+                                                                             To="1"
+                                                                             Duration="0:0:0.1"/>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </Trigger.ExitActions>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
 
                         </StackPanel>
 
@@ -143,8 +201,66 @@
                                 </TextBlock.ToolTip>
                             </TextBlock>
 
-                            <Image Source="/Icons/refresh.png"
-                                   Width="15" Height="15" Margin="10,0"/>
+                            <Button Width="15" Height="15" Margin="10,0"
+                                    Click="RefreshProcesses_Click"
+                                    Cursor="Hand"
+                                    Focusable="False">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Image x:Name="icon" 
+                                               Source="/Icons/refresh.png" 
+                                               Width="15" Height="15"
+                                               RenderTransformOrigin="0.5,0.5">
+                                            <Image.RenderTransform>
+                                                <TransformGroup>
+                                                    <RotateTransform x:Name="rotation" Angle="0"/>
+                                                    <ScaleTransform x:Name="scale" ScaleX="1" ScaleY="1"/>
+                                                </TransformGroup>
+                                            </Image.RenderTransform>
+                                        </Image>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Trigger.EnterActions>
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetName="rotation"
+                                                                             Storyboard.TargetProperty="Angle"
+                                                                             To="-180"
+                                                                             Duration="0:0:0.15"/>
+                                                            <DoubleAnimation Storyboard.TargetName="scale"
+                                                                             Storyboard.TargetProperty="ScaleX"
+                                                                             To="0.7"
+                                                                             Duration="0:0:0.1"/>
+                                                            <DoubleAnimation Storyboard.TargetName="scale"
+                                                                             Storyboard.TargetProperty="ScaleY"
+                                                                             To="0.7"
+                                                                             Duration="0:0:0.1"/>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </Trigger.EnterActions>
+                                                <Trigger.ExitActions>
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetName="rotation"
+                                                                             Storyboard.TargetProperty="Angle"
+                                                                             To="0"
+                                                                             Duration="0:0:0.1"/>
+                                                            <DoubleAnimation Storyboard.TargetName="scale"
+                                                                             Storyboard.TargetProperty="ScaleX"
+                                                                             To="1"
+                                                                             Duration="0:0:0.1"/>
+                                                            <DoubleAnimation Storyboard.TargetName="scale"
+                                                                             Storyboard.TargetProperty="ScaleY"
+                                                                             To="1"
+                                                                             Duration="0:0:0.1"/>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </Trigger.ExitActions>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
 
                         </StackPanel>
 

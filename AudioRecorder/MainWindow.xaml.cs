@@ -40,12 +40,14 @@ namespace AudioRecorder
             devicesPanel.ItemsSource = Devices;
             processesPanel.ItemsSource = Processes;
             _deviceEnumerator = new MMDeviceEnumerator();
+            RefreshAudioDevices();
 
             _timer = new DispatcherTimer();
             _timer.Interval = TimeSpan.FromSeconds(1);
             _timer.Tick += (object sender, EventArgs e) => { RefreshAudioDevices(); };
             _timer.Start();
         }
+        
 
         #region RESTORE DEFAULT WINDOW ANIMATIONS
         [DllImport("user32.dll", EntryPoint = "SetWindowLong")]
@@ -127,6 +129,7 @@ namespace AudioRecorder
         #endregion
 
 
+        #region REFRESH DATA
         private void RefreshAudioDevices()
         {
             List<MMDevice> devices = _deviceEnumerator.EnumerateAudioEndPoints(DataFlow.All, DeviceState.Active).ToList();
@@ -273,12 +276,19 @@ namespace AudioRecorder
                 }
             }
         }
+        #endregion
 
 
-
-        private void RefreshDevices_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        private void RefreshDevices_Click(object sender, RoutedEventArgs e)
         {
             RefreshAudioDevices();
+        }
+
+        private void RefreshProcesses_Click(object sender, RoutedEventArgs e)
+        {
+            DeviceControl selectedDevice = Devices.FirstOrDefault(d => d.IsHighlighted);
+            if (selectedDevice != null)
+                RefreshDeviceProcesses(selectedDevice.Model);
         }
 
         private void Device_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
