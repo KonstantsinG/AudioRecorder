@@ -195,6 +195,12 @@ namespace AudioRecorder
             DeviceControl selectedDevice = Devices.FirstOrDefault(d => d.IsHighlighted);
             if (selectedDevice != null)
                 RefreshDeviceProcesses(selectedDevice.Model);
+            
+            else if (Devices.Count > 0) // just select first
+            {
+                Devices[0].IsHighlighted = true;
+                RefreshDeviceProcesses(Devices[0].Model);
+            }
         }
 
         private void RefreshDeviceProcesses(MMDevice device)

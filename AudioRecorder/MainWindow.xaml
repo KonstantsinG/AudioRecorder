@@ -313,13 +313,16 @@
                 <WrapPanel Grid.Row="1" Margin="20,10" VerticalAlignment="Bottom">
 
                     <Button Content="Start" Width="70" Margin="0,0,5,0"
-                            Background="#FF9AA0FD" FontWeight="Medium"/>
+                            Style="{DynamicResource DarkButton}"
+                            Background="#FF2F1A1A"/>
 
                     <Button Content="Stop" Width="70" Margin="0,0,50,0"
-                            Background="#FFE48585" FontWeight="Medium"/>
+                            Style="{DynamicResource DarkButton}"
+                            Background="#FF28283C"/>
 
                     <Button Content="Open" Width="70" Margin="0,0,5,0"
-                            Background="#FFC3AB69" FontWeight="Medium"/>
+                            Style="{DynamicResource DarkButton}"
+                            Visibility="Collapsed"/>
 
                 </WrapPanel>
 
