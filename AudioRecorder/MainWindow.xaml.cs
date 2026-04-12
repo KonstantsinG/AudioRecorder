@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -22,8 +23,17 @@ namespace AudioRecorder
     /// <summary>
     /// Логика взаимодействия для MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, INotifyPropertyChanged
     {
+        #region I_NOTIFY_PROPERTY_CHANGED
+        public event PropertyChangedEventHandler PropertyChanged;
+        public void OnPropertyChanged([CallerMemberName] string prop = "")
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
+        }
+        #endregion
+
+
         private WasapiLoopbackCapture _loopbackCapture;
         private WaveFileWriter _waveWriter;
         private MMDeviceEnumerator _deviceEnumerator;
@@ -32,11 +42,26 @@ namespace AudioRecorder
         public ObservableCollection<DeviceControl> Devices = new ObservableCollection<DeviceControl>();
         public ObservableCollection<TextBlock> Processes = new ObservableCollection<TextBlock>();
 
+        private string _filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), $"recording_{DateTime.Now:dd_MM_yyyy}");
+        public string FilePath
+        {
+            get => _filePath;
+            set
+            {
+                if (_filePath != value)
+                {
+                    _filePath = value;
+                    OnPropertyChanged(nameof(FilePath));
+                }
+            }
+        }
+
 
         public MainWindow()
         {
             InitializeComponent();
 
+            DataContext = this;
             devicesPanel.ItemsSource = Devices;
             processesPanel.ItemsSource = Processes;
             _deviceEnumerator = new MMDeviceEnumerator();
@@ -304,6 +329,23 @@ namespace AudioRecorder
             
             ((DeviceControl)sender).IsHighlighted = true;
             RefreshDeviceProcesses(((DeviceControl)sender).Model);
+        }
+
+        private void PathTBox_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            SaveFileDialog saveFileDialog = new SaveFileDialog
+            {
+                Filter = "Wave files (*.wav)|*.wav|MP3 files (*.mp3)|*.mp3",
+                FilterIndex = 1,
+                FileName = $"recording_{DateTime.Now:dd_MM_yyyy}"
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                // path without extension
+                FilePath = Path.Combine(Path.GetDirectoryName(saveFileDialog.FileName),
+                           Path.GetFileNameWithoutExtension(saveFileDialog.FileName));
+            }
         }
 
 

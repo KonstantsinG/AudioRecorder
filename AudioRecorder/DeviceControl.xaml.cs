@@ -12,11 +12,13 @@ namespace AudioRecorder
     /// </summary>
     public partial class DeviceControl : UserControl, INotifyPropertyChanged
     {
+        #region I_NOTIFY_PROPERTY_CHANGED
         public event PropertyChangedEventHandler PropertyChanged;
         public void OnPropertyChanged([CallerMemberName] string prop = "")
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
         }
+        #endregion
 
 
         private bool _isSpeaker = true;
