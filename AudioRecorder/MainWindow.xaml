@@ -123,7 +123,25 @@
                                     Orientation="Horizontal">
 
                             <TextBlock Foreground="{DynamicResource Light1}"
-                                       Text="Running processes"  FontWeight="Light"/>
+                                       Text="Running processes"  FontWeight="Light">
+                                <TextBlock.ToolTip>
+                                    <ToolTip Background="{DynamicResource Dark1}" 
+                                             BorderBrush="{DynamicResource Dark3}" 
+                                             BorderThickness="1">
+                                        <StackPanel Margin="3">
+                                            <TextBlock Text="White - active" 
+                                                       FontSize="10"
+                                                       Foreground="{DynamicResource Light0}"/>
+                                            <TextBlock Text="Gray - muted" 
+                                                       FontSize="10"
+                                                       Foreground="{DynamicResource Light2}"/>
+                                            <TextBlock Text="Blue - system" 
+                                                       FontSize="10"
+                                                       Foreground="CornflowerBlue"/>
+                                        </StackPanel>
+                                    </ToolTip>
+                                </TextBlock.ToolTip>
+                            </TextBlock>
 
                             <Image Source="/Icons/refresh.png"
                                    Width="15" Height="15" Margin="10,0"/>
@@ -134,6 +152,15 @@
                                    Fill="{DynamicResource Dark1}" StrokeThickness="2"
                                    Stroke="{DynamicResource Dark3}"
                                    RadiusX="5" RadiusY="5" Grid.Row="1"/>
+
+                        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled"
+                                      VerticalScrollBarVisibility="Hidden">
+                            <ItemsControl Margin="15,10,10,10" x:Name="processesPanel">
+
+
+
+                            </ItemsControl>
+                        </ScrollViewer>
 
                     </Grid>
 
@@ -146,8 +173,8 @@
                         <Ellipse Height="12" Width="12" Stroke="White"
                                  HorizontalAlignment="Left" StrokeThickness="1"/>
 
-                        <Ellipse Height="4" Width="4" Fill="White"
-                                 HorizontalAlignment="Left" Margin="4,0,0,0"/>
+                        <Ellipse Height="6" Width="6" Fill="White"
+                                 HorizontalAlignment="Left" Margin="3,0,0,0"/>
 
                         <TextBlock Foreground="{DynamicResource Light1}"
                                    Text="Ready"  FontWeight="Light"

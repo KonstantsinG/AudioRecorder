@@ -11,8 +11,11 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace AudioRecorder
 {
@@ -24,8 +27,10 @@ namespace AudioRecorder
         private WasapiLoopbackCapture _loopbackCapture;
         private WaveFileWriter _waveWriter;
         private MMDeviceEnumerator _deviceEnumerator;
+        private DispatcherTimer _timer;
 
         public ObservableCollection<DeviceControl> Devices = new ObservableCollection<DeviceControl>();
+        public ObservableCollection<TextBlock> Processes = new ObservableCollection<TextBlock>();
 
 
         public MainWindow()
@@ -33,8 +38,13 @@ namespace AudioRecorder
             InitializeComponent();
 
             devicesPanel.ItemsSource = Devices;
+            processesPanel.ItemsSource = Processes;
             _deviceEnumerator = new MMDeviceEnumerator();
-            LoadAudioDevices();
+
+            _timer = new DispatcherTimer();
+            _timer.Interval = TimeSpan.FromSeconds(1);
+            _timer.Tick += (object sender, EventArgs e) => { RefreshAudioDevices(); };
+            _timer.Start();
         }
 
         #region RESTORE DEFAULT WINDOW ANIMATIONS
@@ -99,6 +109,7 @@ namespace AudioRecorder
         }
         #endregion
 
+        #region WINDOW CONTROLS
         private void RedCircle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             Close();
@@ -113,30 +124,161 @@ namespace AudioRecorder
         {
             WindowState = WindowState.Minimized;
         }
+        #endregion
 
 
-
-        private void LoadAudioDevices()
+        private void RefreshAudioDevices()
         {
             List<MMDevice> devices = _deviceEnumerator.EnumerateAudioEndPoints(DataFlow.All, DeviceState.Active).ToList();
-            Devices.Clear();
-
-            foreach (MMDevice d in devices)
+            if (Devices.Count > 0) // update existing device controls
             {
-                DeviceControl control = new DeviceControl()
+                List<DeviceControl> oldDevices = new List<DeviceControl>(Devices);
+                Devices.Clear();
+                int foundDeviceId = -1;
+
+                foreach (MMDevice newD in devices)
                 {
-                    IsSpeaker = (d.DataFlow == DataFlow.Render),
-                    DeviceName = d.FriendlyName,
-                    Volume = Math.Floor(d.AudioEndpointVolume.MasterVolumeLevelScalar * 100).ToString() + '%'
-                };
-                control.Click += Device_MouseLeftButtonDown;
-                Devices.Add(control);
+                    // search for existing device control
+                    foundDeviceId = -1;
+                    for (int i = 0; i < oldDevices.Count; i++)
+                    {
+                        if (newD.ID == oldDevices[i].Model.ID)
+                        {
+                            foundDeviceId = i;
+                            break;
+                        }
+                    }
+
+                    if (foundDeviceId != -1) // existing device control found
+                    {
+                        // update all necessary properties
+                        oldDevices[foundDeviceId].Model = newD;
+                        oldDevices[foundDeviceId].Volume = Math.Floor(newD.AudioEndpointVolume.MasterVolumeLevelScalar * 100).ToString() + '%';
+                        Devices.Add(oldDevices[foundDeviceId]);
+                    }
+                    else // existing device control is not found, create new
+                    {
+                        DeviceControl control = new DeviceControl()
+                        {
+                            IsSpeaker = (newD.DataFlow == DataFlow.Render),
+                            DeviceName = newD.FriendlyName,
+                            Volume = Math.Floor(newD.AudioEndpointVolume.MasterVolumeLevelScalar * 100).ToString() + '%',
+                            Model = newD
+                        };
+                        control.Click += Device_MouseLeftButtonDown;
+                        Devices.Add(control);
+                    }
+                }
+            }
+            else // construct new device controls
+            {
+                Devices.Clear();
+
+                foreach (MMDevice d in devices)
+                {
+                    DeviceControl control = new DeviceControl()
+                    {
+                        IsSpeaker = (d.DataFlow == DataFlow.Render),
+                        DeviceName = d.FriendlyName,
+                        Volume = Math.Floor(d.AudioEndpointVolume.MasterVolumeLevelScalar * 100).ToString() + '%',
+                        Model = d
+                    };
+                    control.Click += Device_MouseLeftButtonDown;
+                    Devices.Add(control);
+                }
+            }
+
+            // update device processes if any of them is selected
+            DeviceControl selectedDevice = Devices.FirstOrDefault(d => d.IsHighlighted);
+            if (selectedDevice != null)
+                RefreshDeviceProcesses(selectedDevice.Model);
+        }
+
+        private void RefreshDeviceProcesses(MMDevice device)
+        {
+            if (Processes.Count > 0) // update existing process controls
+            {
+                List<TextBlock> oldProcesses = new List<TextBlock>(Processes);
+                Processes.Clear();
+                int foundProcessId = -1;
+
+                for (int i = 0; i < device.AudioSessionManager.Sessions.Count; i++)
+                {
+                    // search for existing process control
+                    var newSession = device.AudioSessionManager.Sessions[i];
+                    string newName = Process.GetProcessById((int)newSession.GetProcessID).ProcessName;
+                    bool isSystem = newSession.IsSystemSoundsSession;
+                    bool isActive = newSession.State == AudioSessionState.AudioSessionStateActive && newSession.SimpleAudioVolume.Volume > 0;
+                    foundProcessId = -1;
+
+                    for (int j = 0; j < oldProcesses.Count; j++)
+                    {
+                        if (newName == oldProcesses[j].Text)
+                        {
+                            foundProcessId = j;
+                            break;
+                        }
+                    }
+
+                    if (foundProcessId != -1) // existing process control found
+                    {
+                        TextBlock tb = oldProcesses[foundProcessId];
+
+                        if (!isSystem)
+                        {
+                            if (isActive) tb.Foreground = (SolidColorBrush)TryFindResource("Light0") ?? new SolidColorBrush(Colors.White);
+                            else tb.Foreground = (SolidColorBrush)TryFindResource("Light2") ?? new SolidColorBrush(Colors.White);
+                        }
+
+                        Processes.Add(tb);
+                    }
+                    else // existing process control is not found, create new
+                    {
+                        TextBlock tb = new TextBlock()
+                        {
+                            Text = newName,
+                            FontWeight = FontWeights.Light,
+                            FontSize = 10
+                        };
+                        if (isSystem) tb.Foreground = new SolidColorBrush(Colors.CornflowerBlue);
+                        else if (isActive) tb.Foreground = (SolidColorBrush)TryFindResource("Light0") ?? new SolidColorBrush(Colors.White);
+                        else tb.Foreground = (SolidColorBrush)TryFindResource("Light2") ?? new SolidColorBrush(Colors.White);
+
+                        Processes.Add(tb);
+                    }
+                }
+            }
+            else // construct new process control
+            {
+                Processes.Clear();
+
+                for (int i = 0; i < device.AudioSessionManager.Sessions.Count; i++)
+                {
+                    var session = device.AudioSessionManager.Sessions[i];
+                    string name = Process.GetProcessById((int)session.GetProcessID).ProcessName;
+                    bool isSystem = session.IsSystemSoundsSession;
+                    bool isActive = session.State == AudioSessionState.AudioSessionStateActive && session.SimpleAudioVolume.Volume > 0;
+
+                    TextBlock tb = new TextBlock()
+                    {
+                        Text = name,
+                        FontWeight = FontWeights.Light,
+                        FontSize = 10
+                    };
+                    if (isSystem) tb.Foreground = new SolidColorBrush(Colors.CornflowerBlue);
+                    else if (isActive) tb.Foreground = (SolidColorBrush)TryFindResource("Light0") ?? new SolidColorBrush(Colors.White);
+                    else tb.Foreground = (SolidColorBrush)TryFindResource("Light2") ?? new SolidColorBrush(Colors.White);
+
+                    Processes.Add(tb);
+                }
             }
         }
 
+
+
         private void RefreshDevices_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            LoadAudioDevices();
+            RefreshAudioDevices();
         }
 
         private void Device_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -145,6 +287,7 @@ namespace AudioRecorder
                 d.IsHighlighted = false;
             
             ((DeviceControl)sender).IsHighlighted = true;
+            RefreshDeviceProcesses(((DeviceControl)sender).Model);
         }
 
 

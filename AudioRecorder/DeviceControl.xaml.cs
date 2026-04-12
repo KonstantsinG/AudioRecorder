@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Media;
 using System.Windows.Input;
+using NAudio.CoreAudioApi;
 
 namespace AudioRecorder
 {
@@ -22,6 +23,7 @@ namespace AudioRecorder
         private string _deviceName = "Unknown device";
         private string _volume = "0%";
         private bool _isHighlighted = false;
+        private MMDevice _model;
 
         public event MouseButtonEventHandler Click;
         private void InvokeClickEvent(object sender, MouseButtonEventArgs e) => Click?.Invoke(this, e);
@@ -77,6 +79,12 @@ namespace AudioRecorder
                     ToggleSelection(value);
                 }
             }
+        }
+
+        public MMDevice Model
+        {
+            get => _model;
+            set => _model = value;
         }
 
         public string DeviceIconPath => IsSpeaker ? "/Icons/speaker.png" : "/Icons/microphone.png";
