@@ -48,7 +48,7 @@
                         Margin="15,0" VerticalAlignment="Center">
 
                 <Ellipse Height="5" Width="5" Fill="White" Margin="5"/>
-                
+
                 <TextBlock Text="AudioRecorder" Foreground="{DynamicResource Light0}"
                            FontWeight="Light"/>
 
@@ -70,6 +70,19 @@
                     <RowDefinition Height="2*"/>
                     <RowDefinition Height="1*"/>
                 </Grid.RowDefinitions>
+
+                <Grid Panel.ZIndex="10" Grid.RowSpan="2" Visibility="Collapsed"
+                      Margin="0,0,0,40" IsHitTestVisible="False" x:Name="countdownPanel">
+
+                    <Rectangle Width="Auto" Height="Auto" Fill="#A5131313"
+                               Stroke="#FF262626" StrokeThickness="2"/>
+
+                    <TextBlock HorizontalAlignment="Center" x:Name="countdownTBlock"
+                               VerticalAlignment="Center" Text="3" FontSize="100"
+                               Foreground="{DynamicResource Light1}"
+                               FontWeight="Medium"/>
+
+                </Grid>
 
                 <Grid Grid.Row="0">
 
@@ -163,7 +176,7 @@
                                       VerticalScrollBarVisibility="Hidden">
                             <ItemsControl Margin="20,15,15,0" x:Name="devicesPanel">
 
-                                
+
 
                             </ItemsControl>
                         </ScrollViewer>
@@ -282,29 +295,32 @@
 
                 </Grid>
 
-                <StackPanel Grid.Row="1" Margin="20,10">
+                <Grid Grid.Row="1" Margin="20,10" Panel.ZIndex="15">
 
-                    <Grid>
+                    <Ellipse Height="12" Width="12" Stroke="White" x:Name="recordingIcon1"
+                             HorizontalAlignment="Left" VerticalAlignment="Top"
+                             StrokeThickness="1"/>
 
-                        <Ellipse Height="12" Width="12" Stroke="White"
-                                 HorizontalAlignment="Left" StrokeThickness="1"/>
+                    <Ellipse Height="6" Width="6" Fill="White" x:Name="recordingIcon2"
+                             HorizontalAlignment="Left" VerticalAlignment="Top"
+                             Margin="3,3,0,0"/>
 
-                        <Ellipse Height="6" Width="6" Fill="White"
-                                 HorizontalAlignment="Left" Margin="3,0,0,0"/>
+                    <TextBlock Foreground="{DynamicResource Light1}"
+                               Text="Ready"  FontWeight="Light"
+                               Margin="20,-3,0,0" x:Name="recordingTimerTBlock"
+                               HorizontalAlignment="Left" VerticalAlignment="Top"/>
 
-                        <TextBlock Foreground="{DynamicResource Light1}"
-                                   Text="Ready"  FontWeight="Light"
-                                   Margin="20,0,0,0"/>
+                </Grid>
 
-                    </Grid>
+                <StackPanel Grid.Row="1" Margin="20,20">
 
-                    <ComboBox Margin="0,25,0,0" Width="150"
+                    <ComboBox Margin="0,20,0,0" Width="150"
                               HorizontalAlignment="Left" SelectedIndex="0">
                         <ComboBoxItem Content="raw .wav"/>
                         <ComboBoxItem Content="compressed .mp3"/>
                     </ComboBox>
 
-                    <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
+                    <StackPanel Margin="0,15,0,0" Orientation="Horizontal">
 
                         <TextBlock Foreground="{DynamicResource Light1}"
                                    Text="> "
@@ -324,9 +340,10 @@
 
                     <Button Content="Start" Width="70" Margin="0,0,5,0"
                             Style="{DynamicResource DarkButton}"
-                            Background="#FF461C1C"/>
+                            Background="#FF461C1C"
+                            Click="RecordButton_Click"/>
 
-                    <Button Content="Stop" Width="70" Margin="0,0,50,0"
+                    <Button Content="Stop" Width="70" Margin="0,0,30,0"
                             Style="{DynamicResource DarkButton}"
                             Background="#FF212140"/>
 
@@ -347,9 +364,9 @@
                            Foreground="White" FontSize="30"/>
 
             </Grid>
-            
+
         </Grid>
 
     </Grid>
-    
+
 </Window>

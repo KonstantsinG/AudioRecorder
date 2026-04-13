@@ -37,10 +37,21 @@ namespace AudioRecorder
         private WasapiLoopbackCapture _loopbackCapture;
         private WaveFileWriter _waveWriter;
         private MMDeviceEnumerator _deviceEnumerator;
-        private DispatcherTimer _timer;
+        private DispatcherTimer _refreshTimer;
+        private DispatcherTimer _recordingTimer;
+        private uint _countdownCounter = 3;
+        private DateTime _recordingStartTime;
 
         public ObservableCollection<DeviceControl> Devices = new ObservableCollection<DeviceControl>();
         public ObservableCollection<TextBlock> Processes = new ObservableCollection<TextBlock>();
+
+        private AppState _state = AppState.Idle;
+        private enum AppState
+        {
+            Idle,
+            Countdown,
+            Recording
+        }
 
         private string _filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), $"recording_{DateTime.Now:dd_MM_yyyy}");
         public string FilePath
@@ -67,10 +78,10 @@ namespace AudioRecorder
             _deviceEnumerator = new MMDeviceEnumerator();
             RefreshAudioDevices();
 
-            _timer = new DispatcherTimer();
-            _timer.Interval = TimeSpan.FromSeconds(1);
-            _timer.Tick += (object sender, EventArgs e) => { RefreshAudioDevices(); };
-            _timer.Start();
+            _refreshTimer = new DispatcherTimer();
+            _refreshTimer.Interval = TimeSpan.FromSeconds(1);
+            _refreshTimer.Tick += (object sender, EventArgs e) => { RefreshAudioDevices(); };
+            _refreshTimer.Start();
         }
         
 
@@ -349,13 +360,72 @@ namespace AudioRecorder
         }
 
 
+        #region RECORDING
+        private void RecordButton_Click(object sender, RoutedEventArgs e)
+        {
+            _state = AppState.Countdown;
+            _refreshTimer.Stop();
+
+            countdownTBlock.Text = "3";
+            countdownPanel.Visibility = Visibility.Visible;
+            countdownPanel.IsHitTestVisible = true;
+
+            _recordingTimer = new DispatcherTimer(DispatcherPriority.Render);
+            _recordingTimer.Interval = TimeSpan.FromSeconds(1);
+            _recordingTimer.Tick += UpdateCountdown;
+            _recordingTimer.Start();
+        }
+
+        private void UpdateCountdown(object sender, EventArgs e)
+        {
+            _countdownCounter--;
+
+            if (_countdownCounter > 0)
+            {
+                countdownTBlock.Text = _countdownCounter.ToString();
+            }
+            else
+            {
+                _countdownCounter = 3;
+                countdownTBlock.Text = string.Empty;
+
+                _recordingTimer.Stop();
+                _recordingTimer.Tick -= UpdateCountdown;
+                _recordingTimer.Tick += UpdateRecordingTimer;
+
+                _recordingStartTime = DateTime.Now;
+                recordingIcon1.Stroke = new SolidColorBrush(Colors.IndianRed);
+                recordingIcon2.Fill = new SolidColorBrush(Colors.IndianRed);
+                recordingTimerTBlock.Foreground = new SolidColorBrush(Colors.IndianRed);
+                recordingTimerTBlock.Text = "Recording...";
+
+                _state = AppState.Recording;
+                _recordingTimer.Start();
+                StartRecording();
+            }
+        }
+
+        private void UpdateRecordingTimer(object sender, EventArgs e)
+        {
+            recordingTimerTBlock.Text = $"Recording... {(DateTime.Now - _recordingStartTime):hh\\:mm\\:ss}";
+        }
+
+
+
+        private void StartRecording()
+        {
+
+        }
+        #endregion
+
+
 
 
         private void btnRecord_Click(object sender, RoutedEventArgs e)
         {
             if (_loopbackCapture != null)
             {
-                StopRecording();
+                _StopRecording();
                 return;
             }
 
@@ -368,7 +438,7 @@ namespace AudioRecorder
             //StartRecording();
         }
 
-        private async void StartRecording()
+        private async void _StartRecording()
         {
             var saveFileDialog = new SaveFileDialog
             {
@@ -399,7 +469,7 @@ namespace AudioRecorder
             }
         }
 
-        private void StopRecording()
+        private void _StopRecording()
         {
             if (_loopbackCapture != null)
                 _loopbackCapture.StopRecording();
