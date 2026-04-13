@@ -345,7 +345,8 @@
 
                     <Button Content="Stop" Width="70" Margin="0,0,30,0"
                             Style="{DynamicResource DarkButton}"
-                            Background="#FF212140"/>
+                            Background="#FF212140"
+                            Click="StopRecordingButton_Click"/>
 
                     <Button Content="Open" Width="70" Margin="0,0,5,0"
                             Style="{DynamicResource DarkButton}"

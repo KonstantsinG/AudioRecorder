@@ -39,8 +39,8 @@ namespace AudioRecorder
         private MMDeviceEnumerator _deviceEnumerator;
         private DispatcherTimer _refreshTimer;
         private DispatcherTimer _recordingTimer;
+        private Stopwatch _recordingElapsedTimer;
         private uint _countdownCounter = 3;
-        private DateTime _recordingStartTime;
 
         public ObservableCollection<DeviceControl> Devices = new ObservableCollection<DeviceControl>();
         public ObservableCollection<TextBlock> Processes = new ObservableCollection<TextBlock>();
@@ -53,7 +53,9 @@ namespace AudioRecorder
             Recording
         }
 
-        private string _filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), $"recording_{DateTime.Now:dd_MM_yyyy}");
+        private static readonly string _defaultPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic),
+                                                                   $"recording_{DateTime.Now:dd_MM_yyyy}");
+        private string _filePath = _defaultPath;
         public string FilePath
         {
             get => _filePath;
@@ -150,6 +152,9 @@ namespace AudioRecorder
         #region WINDOW CONTROLS
         private void RedCircle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (_state == AppState.Recording)
+                StopRecording();
+
             Close();
         }
 
@@ -321,6 +326,7 @@ namespace AudioRecorder
         #endregion
 
 
+        #region APP CONTROLS
         private void RefreshDevices_Click(object sender, RoutedEventArgs e)
         {
             RefreshAudioDevices();
@@ -358,48 +364,117 @@ namespace AudioRecorder
                            Path.GetFileNameWithoutExtension(saveFileDialog.FileName));
             }
         }
+        #endregion
+
+
+        #region STYLES CONTROLS
+        private void SetupCountdownPanel(bool enablePanel, bool enableCounter)
+        {
+            if (enablePanel)
+            {
+                countdownPanel.Visibility = Visibility.Visible;
+                countdownPanel.IsHitTestVisible = true;
+            }
+            else
+            {
+                countdownPanel.Visibility = Visibility.Collapsed;
+                countdownPanel.IsHitTestVisible = false;
+            }
+
+            if (enableCounter)
+                countdownTBlock.Text = "3";
+            else
+                countdownTBlock.Text = string.Empty;
+        }
+
+        private void SyncRecordingIconWithAppState()
+        {
+            SolidColorBrush brush;
+
+            switch (_state)
+            {
+                case AppState.Idle:
+                    recordingTimerTBlock.Text = "Ready";
+                    brush = (SolidColorBrush)TryFindResource("Light1") ?? new SolidColorBrush(Colors.White);
+                    recordingTimerTBlock.Foreground = brush;
+                    recordingIcon1.Stroke = brush;
+                    recordingIcon2.Fill = brush;
+                    break;
+
+                case AppState.Countdown:
+                    recordingTimerTBlock.Text = "Prepairing...";
+                    brush = (SolidColorBrush)TryFindResource("Light1") ?? new SolidColorBrush(Colors.White);
+                    recordingTimerTBlock.Foreground = brush;
+                    recordingIcon1.Stroke = brush;
+                    recordingIcon2.Fill = brush;
+                    break;
+
+                case AppState.Recording:
+                    recordingTimerTBlock.Text = "Recording... 00:00:00";
+                    brush = new SolidColorBrush(Colors.IndianRed);
+                    recordingTimerTBlock.Foreground = brush;
+                    recordingIcon1.Stroke = brush;
+                    recordingIcon2.Fill = brush;
+                    break;
+            }
+        }
+        #endregion
 
 
         #region RECORDING
         private void RecordButton_Click(object sender, RoutedEventArgs e)
         {
+            if (_state != AppState.Idle) return;
+
+            // chage app state and stop all other activity
             _state = AppState.Countdown;
             _refreshTimer.Stop();
 
-            countdownTBlock.Text = "3";
-            countdownPanel.Visibility = Visibility.Visible;
-            countdownPanel.IsHitTestVisible = true;
+            // enable countdown panel and update recording icon
+            SetupCountdownPanel(true, true);
+            SyncRecordingIconWithAppState();
 
-            _recordingTimer = new DispatcherTimer(DispatcherPriority.Render);
-            _recordingTimer.Interval = TimeSpan.FromSeconds(1);
+            // setup UX update timer
+            if (_recordingTimer == null)
+            {
+                _recordingTimer = new DispatcherTimer(DispatcherPriority.Render)
+                {
+                    Interval = TimeSpan.FromSeconds(1)
+                };
+            }
             _recordingTimer.Tick += UpdateCountdown;
             _recordingTimer.Start();
         }
 
         private void UpdateCountdown(object sender, EventArgs e)
         {
-            _countdownCounter--;
+            --_countdownCounter;
 
-            if (_countdownCounter > 0)
+            if (_countdownCounter > 0) // countdown is not finished yet
             {
                 countdownTBlock.Text = _countdownCounter.ToString();
             }
-            else
+            else // countdown is finished, prepare everything for recording
             {
+                // reset counter
                 _countdownCounter = 3;
-                countdownTBlock.Text = string.Empty;
 
+                // switch UX update callback
                 _recordingTimer.Stop();
                 _recordingTimer.Tick -= UpdateCountdown;
                 _recordingTimer.Tick += UpdateRecordingTimer;
 
-                _recordingStartTime = DateTime.Now;
-                recordingIcon1.Stroke = new SolidColorBrush(Colors.IndianRed);
-                recordingIcon2.Fill = new SolidColorBrush(Colors.IndianRed);
-                recordingTimerTBlock.Foreground = new SolidColorBrush(Colors.IndianRed);
-                recordingTimerTBlock.Text = "Recording...";
+                // setup recording time timer
+                if (_recordingElapsedTimer == null)
+                    _recordingElapsedTimer = new Stopwatch();
 
+                // change app state and update recording icon
                 _state = AppState.Recording;
+                SetupCountdownPanel(true, false);
+                SyncRecordingIconWithAppState();
+
+                // start recording process
+                _recordingElapsedTimer.Start();
                 _recordingTimer.Start();
                 StartRecording();
             }
@@ -407,16 +482,58 @@ namespace AudioRecorder
 
         private void UpdateRecordingTimer(object sender, EventArgs e)
         {
-            recordingTimerTBlock.Text = $"Recording... {(DateTime.Now - _recordingStartTime):hh\\:mm\\:ss}";
+            recordingTimerTBlock.Text = $"Recording... {_recordingElapsedTimer.Elapsed:hh\\:mm\\:ss}";
         }
-
-
 
         private void StartRecording()
         {
 
         }
+
+        private void StopRecordingButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_state == AppState.Countdown)
+            {
+                // reset counter
+                _countdownCounter = 3;
+
+                // stop all timers
+                _recordingTimer.Stop();
+                _recordingTimer.Tick -= UpdateCountdown;
+
+                // change app state and update UX
+                _state = AppState.Idle;
+                SetupCountdownPanel(false, false);
+                SyncRecordingIconWithAppState();
+            }
+            else if (_state == AppState.Recording)
+            {
+                // stop all timers
+                _recordingTimer.Stop();
+                _recordingTimer.Tick -= UpdateRecordingTimer;
+                _recordingElapsedTimer.Reset();
+
+                // Stop recording process
+                StopRecording();
+
+                // change app state and update UX
+                _state = AppState.Idle;
+                SetupCountdownPanel(false, false);
+                SyncRecordingIconWithAppState();
+            }
+        }
+
+        private void StopRecording()
+        {
+
+        }
         #endregion
+
+
+
+
+
+
 
 
 
