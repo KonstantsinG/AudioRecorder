@@ -16,6 +16,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
 namespace AudioRecorder
@@ -418,6 +419,22 @@ namespace AudioRecorder
                     break;
             }
         }
+
+        private void ToggleLogoAnimation(bool enable)
+        {
+            if (enable)
+            {
+                Storyboard storyboard = (Storyboard)appLogo.Resources["BlinkStoryboard"];
+                storyboard.Begin();
+            }
+            else
+            {
+                Storyboard storyboard = (Storyboard)appLogo.Resources["BlinkStoryboard"];
+                storyboard.Stop();
+
+                appLogo.Fill = new SolidColorBrush(Colors.White);
+            }
+        }
         #endregion
 
 
@@ -472,6 +489,7 @@ namespace AudioRecorder
                 _state = AppState.Recording;
                 SetupCountdownPanel(true, false);
                 SyncRecordingIconWithAppState();
+                ToggleLogoAnimation(true);
 
                 // start recording process
                 _recordingElapsedTimer.Start();
@@ -520,6 +538,7 @@ namespace AudioRecorder
                 _state = AppState.Idle;
                 SetupCountdownPanel(false, false);
                 SyncRecordingIconWithAppState();
+                ToggleLogoAnimation(false);
             }
         }
 

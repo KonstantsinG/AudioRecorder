@@ -47,7 +47,18 @@
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left"
                         Margin="15,0" VerticalAlignment="Center">
 
-                <Ellipse Height="5" Width="5" Fill="White" Margin="5"/>
+                <Ellipse Height="5" Width="5" Fill="White" Margin="5" x:Name="appLogo">
+                    <Ellipse.Resources>
+                        <Storyboard x:Key="BlinkStoryboard" RepeatBehavior="Forever">
+                            <ColorAnimationUsingKeyFrames Storyboard.TargetName="appLogo"
+                                          Storyboard.TargetProperty="(Ellipse.Fill).(SolidColorBrush.Color)"
+                                          Duration="0:0:1.4">
+                                <DiscreteColorKeyFrame Value="Red" KeyTime="0:0:0"/>
+                                <DiscreteColorKeyFrame Value="White" KeyTime="0:0:0.7"/>
+                            </ColorAnimationUsingKeyFrames>
+                        </Storyboard>
+                    </Ellipse.Resources>
+                </Ellipse>
 
                 <TextBlock Text="AudioRecorder" Foreground="{DynamicResource Light0}"
                            FontWeight="Light"/>
