@@ -325,7 +325,7 @@
 
                 <StackPanel Grid.Row="1" Margin="20,20">
 
-                    <ComboBox Margin="0,20,0,0" Width="150"
+                    <ComboBox Margin="0,20,0,0" Width="150" x:Name="extensionCBox"
                               HorizontalAlignment="Left" SelectedIndex="0">
                         <ComboBoxItem Content="raw .wav"/>
                         <ComboBoxItem Content="compressed .mp3"/>

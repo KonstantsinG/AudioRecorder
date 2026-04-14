@@ -9,6 +9,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -69,6 +70,10 @@ namespace AudioRecorder
                 }
             }
         }
+        public string FullFilePath
+        {
+            get => FilePath + GetFileExtension();
+        }
 
 
         public MainWindow()
@@ -81,9 +86,9 @@ namespace AudioRecorder
             _deviceEnumerator = new MMDeviceEnumerator();
             RefreshAudioDevices();
 
-            _refreshTimer = new DispatcherTimer();
+            _refreshTimer = new DispatcherTimer(DispatcherPriority.Normal);
             _refreshTimer.Interval = TimeSpan.FromSeconds(1);
-            _refreshTimer.Tick += (object sender, EventArgs e) => { RefreshAudioDevices(); };
+            _refreshTimer.Tick += OnRefreshTimerTick;
             _refreshTimer.Start();
         }
         
@@ -153,9 +158,6 @@ namespace AudioRecorder
         #region WINDOW CONTROLS
         private void RedCircle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (_state == AppState.Recording)
-                StopRecording();
-
             Close();
         }
 
@@ -168,8 +170,223 @@ namespace AudioRecorder
         {
             WindowState = WindowState.Minimized;
         }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            FreeResources();
+            base.OnClosed(e);
+        }
         #endregion
 
+
+        #region APP CONTROLS EVENTS
+        private void OnRefreshTimerTick(object sender, EventArgs e)
+        {
+            RefreshAudioDevices();
+        }
+
+        private void RefreshDevices_Click(object sender, RoutedEventArgs e)
+        {
+            RefreshAudioDevices();
+        }
+
+        private void RefreshProcesses_Click(object sender, RoutedEventArgs e)
+        {
+            DeviceControl selectedDevice = Devices.FirstOrDefault(d => d.IsHighlighted);
+            if (selectedDevice != null)
+                RefreshDeviceProcesses(selectedDevice.Model);
+        }
+
+        private void Device_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            foreach (DeviceControl d in Devices)
+                d.IsHighlighted = false;
+
+            ((DeviceControl)sender).IsHighlighted = true;
+            RefreshDeviceProcesses(((DeviceControl)sender).Model);
+        }
+
+        private void PathTBox_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            SelectFileLocation();
+        }
+        #endregion
+
+        #region RECORDING EVENTS
+        private void RecordButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_state != AppState.Idle) return;
+
+            if (File.Exists(FullFilePath)) // aviod unintensional file rewriting
+            {
+                string message = "File with the same name is already exists, would you like to erase it?";
+                if (MessageBox.Show(message, "Warning", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.No)
+                {
+                    SelectFileLocation();
+                }
+            }
+
+            // chage app state and stop all other activity
+            _state = AppState.Countdown;
+            _refreshTimer.Stop();
+
+            // enable countdown panel and update recording icon
+            SetupCountdownPanel(true, true);
+            SyncRecordingIconWithAppState();
+
+            // setup UX update timer
+            if (_recordingTimer == null)
+            {
+                _recordingTimer = new DispatcherTimer(DispatcherPriority.Render)
+                {
+                    Interval = TimeSpan.FromSeconds(1)
+                };
+            }
+            _recordingTimer.Tick += UpdateCountdown;
+            _recordingTimer.Start();
+        }
+
+        private void UpdateCountdown(object sender, EventArgs e)
+        {
+            --_countdownCounter;
+
+            if (_countdownCounter > 0) // countdown is not finished yet
+            {
+                countdownTBlock.Text = _countdownCounter.ToString();
+            }
+            else // countdown is finished, prepare everything for recording
+            {
+                // reset counter
+                _countdownCounter = 3;
+
+                // switch UX update callback
+                _recordingTimer.Stop();
+                _recordingTimer.Tick -= UpdateCountdown;
+                _recordingTimer.Tick += UpdateRecordingTimer;
+
+                // setup recording time timer
+                if (_recordingElapsedTimer == null)
+                    _recordingElapsedTimer = new Stopwatch();
+
+                // change app state and update recording icon
+                _state = AppState.Recording;
+                SetupCountdownPanel(true, false);
+                SyncRecordingIconWithAppState();
+                ToggleLogoAnimation(true);
+
+                // start recording process
+                _recordingElapsedTimer.Start();
+                _recordingTimer.Start();
+                StartRecording();
+            }
+        }
+
+        private void UpdateRecordingTimer(object sender, EventArgs e)
+        {
+            recordingTimerTBlock.Text = $"Recording... {_recordingElapsedTimer.Elapsed:hh\\:mm\\:ss}";
+        }
+
+        private void OnDataAvailable(object sender, WaveInEventArgs e)
+        {
+            _waveWriter?.Write(e.Buffer, 0, e.BytesRecorded);
+        }
+
+        private void OnRecordingStopped(object sender, StoppedEventArgs e)
+        {
+            if (e.Exception != null)
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    StopRecording();
+
+                    MessageBox.Show($"Recording was interrupted by an occured error: {e.Exception.Message}", "Recording error",
+                                    MessageBoxButton.OK, MessageBoxImage.Error);
+                });
+            }
+        }
+
+        private void StopRecordingButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_state == AppState.Countdown)
+            {
+                StopRecordingPreparation();
+            }
+            else if (_state == AppState.Recording)
+            {
+                StopRecording();
+            }
+        }
+        #endregion
+
+
+        #region STYLES CONTROLS
+        private void SetupCountdownPanel(bool enablePanel, bool enableCounter)
+        {
+            if (enablePanel)
+            {
+                countdownPanel.Visibility = Visibility.Visible;
+                countdownPanel.IsHitTestVisible = true;
+            }
+            else
+            {
+                countdownPanel.Visibility = Visibility.Collapsed;
+                countdownPanel.IsHitTestVisible = false;
+            }
+
+            if (enableCounter)
+                countdownTBlock.Text = "3";
+            else
+                countdownTBlock.Text = string.Empty;
+        }
+
+        private void SyncRecordingIconWithAppState()
+        {
+            SolidColorBrush brush;
+
+            switch (_state)
+            {
+                case AppState.Idle:
+                    recordingTimerTBlock.Text = "Ready";
+                    brush = (SolidColorBrush)TryFindResource("Light1") ?? new SolidColorBrush(Colors.White);
+                    recordingTimerTBlock.Foreground = brush;
+                    recordingIcon1.Stroke = brush;
+                    recordingIcon2.Fill = brush;
+                    break;
+
+                case AppState.Countdown:
+                    recordingTimerTBlock.Text = "Prepairing...";
+                    brush = (SolidColorBrush)TryFindResource("Light1") ?? new SolidColorBrush(Colors.White);
+                    recordingTimerTBlock.Foreground = brush;
+                    recordingIcon1.Stroke = brush;
+                    recordingIcon2.Fill = brush;
+                    break;
+
+                case AppState.Recording:
+                    recordingTimerTBlock.Text = "Recording... 00:00:00";
+                    brush = new SolidColorBrush(Colors.IndianRed);
+                    recordingTimerTBlock.Foreground = brush;
+                    recordingIcon1.Stroke = brush;
+                    recordingIcon2.Fill = brush;
+                    break;
+            }
+        }
+
+        private void ToggleLogoAnimation(bool enable)
+        {
+            if (enable)
+            {
+                Storyboard storyboard = (Storyboard)appLogo.Resources["BlinkStoryboard"];
+                storyboard.Begin();
+            }
+            else
+            {
+                Storyboard storyboard = (Storyboard)appLogo.Resources["BlinkStoryboard"];
+                storyboard.Stop();
+
+                appLogo.Fill = new SolidColorBrush(Colors.White);
+            }
+        }
+        #endregion
 
         #region REFRESH DATA
         private void RefreshAudioDevices()
@@ -326,277 +543,21 @@ namespace AudioRecorder
         }
         #endregion
 
-
-        #region APP CONTROLS
-        private void RefreshDevices_Click(object sender, RoutedEventArgs e)
-        {
-            RefreshAudioDevices();
-        }
-
-        private void RefreshProcesses_Click(object sender, RoutedEventArgs e)
-        {
-            DeviceControl selectedDevice = Devices.FirstOrDefault(d => d.IsHighlighted);
-            if (selectedDevice != null)
-                RefreshDeviceProcesses(selectedDevice.Model);
-        }
-
-        private void Device_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            foreach (DeviceControl d in Devices)
-                d.IsHighlighted = false;
-            
-            ((DeviceControl)sender).IsHighlighted = true;
-            RefreshDeviceProcesses(((DeviceControl)sender).Model);
-        }
-
-        private void PathTBox_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            SaveFileDialog saveFileDialog = new SaveFileDialog
-            {
-                Filter = "Wave files (*.wav)|*.wav|MP3 files (*.mp3)|*.mp3",
-                FilterIndex = 1,
-                FileName = $"recording_{DateTime.Now:dd_MM_yyyy}"
-            };
-
-            if (saveFileDialog.ShowDialog() == true)
-            {
-                // path without extension
-                FilePath = Path.Combine(Path.GetDirectoryName(saveFileDialog.FileName),
-                           Path.GetFileNameWithoutExtension(saveFileDialog.FileName));
-            }
-        }
-        #endregion
-
-
-        #region STYLES CONTROLS
-        private void SetupCountdownPanel(bool enablePanel, bool enableCounter)
-        {
-            if (enablePanel)
-            {
-                countdownPanel.Visibility = Visibility.Visible;
-                countdownPanel.IsHitTestVisible = true;
-            }
-            else
-            {
-                countdownPanel.Visibility = Visibility.Collapsed;
-                countdownPanel.IsHitTestVisible = false;
-            }
-
-            if (enableCounter)
-                countdownTBlock.Text = "3";
-            else
-                countdownTBlock.Text = string.Empty;
-        }
-
-        private void SyncRecordingIconWithAppState()
-        {
-            SolidColorBrush brush;
-
-            switch (_state)
-            {
-                case AppState.Idle:
-                    recordingTimerTBlock.Text = "Ready";
-                    brush = (SolidColorBrush)TryFindResource("Light1") ?? new SolidColorBrush(Colors.White);
-                    recordingTimerTBlock.Foreground = brush;
-                    recordingIcon1.Stroke = brush;
-                    recordingIcon2.Fill = brush;
-                    break;
-
-                case AppState.Countdown:
-                    recordingTimerTBlock.Text = "Prepairing...";
-                    brush = (SolidColorBrush)TryFindResource("Light1") ?? new SolidColorBrush(Colors.White);
-                    recordingTimerTBlock.Foreground = brush;
-                    recordingIcon1.Stroke = brush;
-                    recordingIcon2.Fill = brush;
-                    break;
-
-                case AppState.Recording:
-                    recordingTimerTBlock.Text = "Recording... 00:00:00";
-                    brush = new SolidColorBrush(Colors.IndianRed);
-                    recordingTimerTBlock.Foreground = brush;
-                    recordingIcon1.Stroke = brush;
-                    recordingIcon2.Fill = brush;
-                    break;
-            }
-        }
-
-        private void ToggleLogoAnimation(bool enable)
-        {
-            if (enable)
-            {
-                Storyboard storyboard = (Storyboard)appLogo.Resources["BlinkStoryboard"];
-                storyboard.Begin();
-            }
-            else
-            {
-                Storyboard storyboard = (Storyboard)appLogo.Resources["BlinkStoryboard"];
-                storyboard.Stop();
-
-                appLogo.Fill = new SolidColorBrush(Colors.White);
-            }
-        }
-        #endregion
-
-
         #region RECORDING
-        private void RecordButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (_state != AppState.Idle) return;
-
-            // chage app state and stop all other activity
-            _state = AppState.Countdown;
-            _refreshTimer.Stop();
-
-            // enable countdown panel and update recording icon
-            SetupCountdownPanel(true, true);
-            SyncRecordingIconWithAppState();
-
-            // setup UX update timer
-            if (_recordingTimer == null)
-            {
-                _recordingTimer = new DispatcherTimer(DispatcherPriority.Render)
-                {
-                    Interval = TimeSpan.FromSeconds(1)
-                };
-            }
-            _recordingTimer.Tick += UpdateCountdown;
-            _recordingTimer.Start();
-        }
-
-        private void UpdateCountdown(object sender, EventArgs e)
-        {
-            --_countdownCounter;
-
-            if (_countdownCounter > 0) // countdown is not finished yet
-            {
-                countdownTBlock.Text = _countdownCounter.ToString();
-            }
-            else // countdown is finished, prepare everything for recording
-            {
-                // reset counter
-                _countdownCounter = 3;
-
-                // switch UX update callback
-                _recordingTimer.Stop();
-                _recordingTimer.Tick -= UpdateCountdown;
-                _recordingTimer.Tick += UpdateRecordingTimer;
-
-                // setup recording time timer
-                if (_recordingElapsedTimer == null)
-                    _recordingElapsedTimer = new Stopwatch();
-
-                // change app state and update recording icon
-                _state = AppState.Recording;
-                SetupCountdownPanel(true, false);
-                SyncRecordingIconWithAppState();
-                ToggleLogoAnimation(true);
-
-                // start recording process
-                _recordingElapsedTimer.Start();
-                _recordingTimer.Start();
-                StartRecording();
-            }
-        }
-
-        private void UpdateRecordingTimer(object sender, EventArgs e)
-        {
-            recordingTimerTBlock.Text = $"Recording... {_recordingElapsedTimer.Elapsed:hh\\:mm\\:ss}";
-        }
-
         private void StartRecording()
         {
-
-        }
-
-        private void StopRecordingButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (_state == AppState.Countdown)
-            {
-                // reset counter
-                _countdownCounter = 3;
-
-                // stop all timers
-                _recordingTimer.Stop();
-                _recordingTimer.Tick -= UpdateCountdown;
-
-                // change app state and update UX
-                _state = AppState.Idle;
-                SetupCountdownPanel(false, false);
-                SyncRecordingIconWithAppState();
-            }
-            else if (_state == AppState.Recording)
-            {
-                // stop all timers
-                _recordingTimer.Stop();
-                _recordingTimer.Tick -= UpdateRecordingTimer;
-                _recordingElapsedTimer.Reset();
-
-                // Stop recording process
-                StopRecording();
-
-                // change app state and update UX
-                _state = AppState.Idle;
-                SetupCountdownPanel(false, false);
-                SyncRecordingIconWithAppState();
-                ToggleLogoAnimation(false);
-            }
-        }
-
-        private void StopRecording()
-        {
-
-        }
-        #endregion
-
-
-
-
-
-
-
-
-
-
-        private void btnRecord_Click(object sender, RoutedEventArgs e)
-        {
-            if (_loopbackCapture != null)
-            {
-                _StopRecording();
-                return;
-            }
-
-            //if (cmbOutputDevices.SelectedItem == null)
-            {
-                MessageBox.Show("Please select an output device for recording", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            //StartRecording();
-        }
-
-        private async void _StartRecording()
-        {
-            var saveFileDialog = new SaveFileDialog
-            {
-                Filter = "Wave files (*.wav)|*.wav)",
-                FileName = $"recording_{DateTime.Now:ddMMyyyy_HHmm}.wav"
-            };
-
-            if (saveFileDialog.ShowDialog() != true)
-                return;
-
             try
             {
-                //var selectedDevice = (MMDevice)cmbOutputDevices.SelectedItem;
-                //_loopbackCapture = new WasapiLoopbackCapture(selectedDevice);
-                _waveWriter = new WaveFileWriter(saveFileDialog.FileName, _loopbackCapture.WaveFormat);
+                DeviceControl selectedControl = Devices.FirstOrDefault(d => d.IsHighlighted);
+                MMDevice selectedDevice = selectedControl?.Model;
+                if (selectedDevice == null) return;
+
+                _loopbackCapture = new WasapiLoopbackCapture(selectedDevice);
+                _waveWriter = new WaveFileWriter(FullFilePath, _loopbackCapture.WaveFormat);
 
                 _loopbackCapture.DataAvailable += OnDataAvailable;
                 _loopbackCapture.RecordingStopped += OnRecordingStopped;
-
                 _loopbackCapture.StartRecording();
-                //btnRecord.Content = "Stop Recording";
-                //txtStatus.Text = $"Recording {System.IO.Path.GetFileName(saveFileDialog.FileName)}...";
             }
             catch (Exception ex)
             {
@@ -605,33 +566,39 @@ namespace AudioRecorder
             }
         }
 
-        private void _StopRecording()
+        private void StopRecordingPreparation()
         {
-            if (_loopbackCapture != null)
-                _loopbackCapture.StopRecording();
+            // reset counter
+            _countdownCounter = 3;
+
+            // stop all timers
+            _recordingTimer.Stop();
+            _recordingTimer.Tick -= UpdateCountdown;
+
+            // change app state and update UX
+            _state = AppState.Idle;
+            SetupCountdownPanel(false, false);
+            SyncRecordingIconWithAppState();
+            _refreshTimer.Start();
         }
 
-        private void OnDataAvailable(object sender, WaveInEventArgs e)
+        private void StopRecording()
         {
-            _waveWriter?.Write(e.Buffer, 0, e.BytesRecorded);
-        }
+            // stop all timers
+            _recordingTimer.Stop();
+            _recordingTimer.Tick -= UpdateRecordingTimer;
+            _recordingElapsedTimer.Reset();
 
-        private void OnRecordingStopped(object sender, StoppedEventArgs e)
-        {
-            Dispatcher.Invoke(() =>
-            {
-                //btnRecord.Content = "Start Recording";
-                //txtStatus.Text = "Ready";
-            });
+            // Stop recording process
+            _loopbackCapture?.StopRecording();
+            CleanupCapture();
 
-            if (e.Exception != null)
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    MessageBox.Show($"Recording was interrupted by an occured error: {e.Exception.Message}", "Recording error",
-                                    MessageBoxButton.OK, MessageBoxImage.Error);
-                });
-            }
+            // change app state and update UX
+            _state = AppState.Idle;
+            SetupCountdownPanel(false, false);
+            SyncRecordingIconWithAppState();
+            ToggleLogoAnimation(false);
+            _refreshTimer.Start();
         }
 
         private void CleanupCapture()
@@ -652,35 +619,69 @@ namespace AudioRecorder
             }
         }
 
-        protected override void OnClosed(EventArgs e)
+        private void FreeResources()
         {
-            CleanupCapture();
-            base.OnClosed(e);
-        }
-
-        private void btnInfo_Click(object sender, RoutedEventArgs e)
-        {
-            var devices = _deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active);
-            MMDevice d = devices.ToList()[0];
-            var name = d.FriendlyName; // name
-            var state = d.State; // device state
-            var flow = d.DataFlow; // in/out
-
-            var am = d.AudioEndpointVolume;
-            var volume = am.MasterVolumeLevelScalar; // volume level 0-1
-
-            var asc = d.AudioSessionManager.AudioSessionControl;
-            var procName = Process.GetProcessById((int)asc.GetProcessID).ProcessName; // process name
-
-            //tbInfo.Text = $"{name} | {state} | {flow} | {volume} | ";
-            for (int i = 0; i < d.AudioSessionManager.Sessions.Count; i++)
+            if (_refreshTimer != null)
             {
-                var s = d.AudioSessionManager.Sessions[i];
-                if (s.State != AudioSessionState.AudioSessionStateActive) continue;
-                if (s.SimpleAudioVolume.Volume == 0) continue;
-                
-                //tbInfo.Text += Process.GetProcessById((int)s.GetProcessID).ProcessName + " | ";
+                _refreshTimer.Stop();
+                _refreshTimer.Tick -= OnRefreshTimerTick;
+                _refreshTimer = null;
+            }
+
+            if (_recordingTimer != null)
+            {
+                _recordingTimer.Stop();
+                if (_state == AppState.Countdown)
+                    _recordingTimer.Tick -= UpdateCountdown;
+                else if (_state == AppState.Recording)
+                    _recordingTimer.Tick -= UpdateRecordingTimer;
+                _recordingTimer = null;
+            }
+
+            if (_recordingElapsedTimer != null)
+            {
+                _recordingElapsedTimer.Stop();
+                _recordingElapsedTimer = null;
+            }
+            
+            if (_loopbackCapture != null)
+                _loopbackCapture.StopRecording();
+            CleanupCapture();
+        }
+        #endregion
+
+        #region OTHER FUNCTIONS
+        private void SelectFileLocation()
+        {
+            SaveFileDialog saveFileDialog = new SaveFileDialog
+            {
+                Filter = "Wave files (*.wav)|*.wav|MP3 files (*.mp3)|*.mp3",
+                FilterIndex = 1,
+                FileName = $"recording_{DateTime.Now:dd_MM_yyyy}"
+            };
+
+            if (saveFileDialog.ShowDialog() == true)
+            {
+                // path without extension
+                FilePath = Path.Combine(Path.GetDirectoryName(saveFileDialog.FileName),
+                           Path.GetFileNameWithoutExtension(saveFileDialog.FileName));
             }
         }
+
+        private string GetFileExtension()
+        {
+            switch (extensionCBox.SelectedIndex)
+            {
+                case 0:
+                    return ".wav";
+
+                case 1:
+                    return ".mp3";
+
+                default:
+                    return string.Empty;
+            }
+        }
+        #endregion
     }
 }
