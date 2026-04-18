@@ -81,6 +81,20 @@ namespace AudioRecorder
             get => FilePath + GetFileExtension();
         }
 
+        private int _extensionIndex = 0;
+        public int ExtensionIndex
+        {
+            get => _extensionIndex;
+            set
+            {
+                if (_extensionIndex != value)
+                {
+                    _extensionIndex = value;
+                    OnPropertyChanged(nameof(ExtensionIndex));
+                }
+            }
+        }
+
         private string _infoName;
         public string InfoName
         {
@@ -793,7 +807,7 @@ namespace AudioRecorder
             }
         }
 
-        private bool IsWavFormatSelected() => extensionCBox.SelectedIndex == 0;
+        private bool IsWavFormatSelected() => _extensionIndex == 0;
         #endregion
     }
 }
