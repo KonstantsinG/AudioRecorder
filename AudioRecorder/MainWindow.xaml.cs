@@ -2,6 +2,7 @@
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
 using NAudio.Wave;
+using NAudio.Lame;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -9,7 +10,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -19,6 +19,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using System.Windows.Media.Imaging;
 
 namespace AudioRecorder
 {
@@ -38,6 +39,7 @@ namespace AudioRecorder
 
         private WasapiLoopbackCapture _loopbackCapture;
         private WaveFileWriter _waveWriter;
+        private LameMP3FileWriter _mp3Writer;
         private MMDeviceEnumerator _deviceEnumerator;
         private DispatcherTimer _refreshTimer;
         private DispatcherTimer _recordingTimer;
@@ -55,8 +57,12 @@ namespace AudioRecorder
             Recording
         }
 
+
+        #region PROPS
+        private static readonly string _defaultName = $"recording_{DateTime.Now:dd_MM_yyyy}";
         private static readonly string _defaultPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic),
-                                                                   $"recording_{DateTime.Now:dd_MM_yyyy}");
+                                                                   _defaultName);
+
         private string _filePath = _defaultPath;
         public string FilePath
         {
@@ -74,6 +80,91 @@ namespace AudioRecorder
         {
             get => FilePath + GetFileExtension();
         }
+
+        private string _infoName;
+        public string InfoName
+        {
+            get => _infoName;
+            set
+            {
+                if (_infoName != value)
+                {
+                    _infoName = value;
+                    OnPropertyChanged(nameof(InfoName));
+                }
+            }
+        }
+
+        private string _infoArtist;
+        public string InfoArtist
+        {
+            get => _infoArtist;
+            set
+            {
+                if (_infoArtist != value)
+                {
+                    _infoArtist = value;
+                    OnPropertyChanged(nameof(InfoArtist));
+                }
+            }
+        }
+
+        private string _infoAlbum;
+        public string InfoAlbum
+        {
+            get => _infoAlbum;
+            set
+            {
+                if (_infoAlbum != value)
+                {
+                    _infoAlbum = value;
+                    OnPropertyChanged(nameof(InfoAlbum));
+                }
+            }
+        }
+
+        private string _infoYear;
+        public string InfoYear
+        {
+            get => _infoYear;
+            set
+            {
+                if (_infoYear != value)
+                {
+                    _infoYear = value;
+                    OnPropertyChanged(nameof(InfoYear));
+                }
+            }
+        }
+
+        private string _infoGenres;
+        public string InfoGenres
+        {
+            get => _infoGenres;
+            set
+            {
+                if (_infoGenres != value)
+                {
+                    _infoGenres = value;
+                    OnPropertyChanged(nameof(InfoGenres));
+                }
+            }
+        }
+
+        private string _infoComment;
+        public string InfoComment
+        {
+            get => _infoComment;
+            set
+            {
+                if (_infoComment != value)
+                {
+                    _infoComment = value;
+                    OnPropertyChanged(nameof(InfoComment));
+                }
+            }
+        }
+        #endregion
 
 
         public MainWindow()
@@ -288,7 +379,10 @@ namespace AudioRecorder
 
         private void OnDataAvailable(object sender, WaveInEventArgs e)
         {
-            _waveWriter?.Write(e.Buffer, 0, e.BytesRecorded);
+            if (IsWavFormatSelected())
+                _waveWriter?.Write(e.Buffer, 0, e.BytesRecorded);
+            else
+                _mp3Writer?.Write(e.Buffer, 0, e.BytesRecorded);
         }
 
         private void OnRecordingStopped(object sender, StoppedEventArgs e)
@@ -553,7 +647,17 @@ namespace AudioRecorder
                 if (selectedDevice == null) return;
 
                 _loopbackCapture = new WasapiLoopbackCapture(selectedDevice);
-                _waveWriter = new WaveFileWriter(FullFilePath, _loopbackCapture.WaveFormat);
+
+                if (IsWavFormatSelected()) // recording .WAV
+                {
+                    _waveWriter = new WaveFileWriter(FullFilePath, _loopbackCapture.WaveFormat);
+                    // add metadata
+                }
+                else // recording .MP3
+                {
+                    // add metadata
+                    _mp3Writer = new LameMP3FileWriter(FullFilePath, _loopbackCapture.WaveFormat, LAMEPreset.STANDARD);
+                }
 
                 _loopbackCapture.DataAvailable += OnDataAvailable;
                 _loopbackCapture.RecordingStopped += OnRecordingStopped;
@@ -616,6 +720,12 @@ namespace AudioRecorder
             {
                 _waveWriter.Dispose();
                 _waveWriter = null;
+            }
+
+            if (_mp3Writer != null)
+            {
+                _mp3Writer.Dispose();
+                _mp3Writer = null;
             }
         }
 
@@ -682,6 +792,8 @@ namespace AudioRecorder
                     return string.Empty;
             }
         }
+
+        private bool IsWavFormatSelected() => extensionCBox.SelectedIndex == 0;
         #endregion
     }
 }

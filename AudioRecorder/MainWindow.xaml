@@ -70,8 +70,8 @@
         <Grid Grid.Row="1" Background="{DynamicResource Dark2}" Margin="2">
 
             <Grid.ColumnDefinitions>
-                <ColumnDefinition/>
-                <ColumnDefinition Width="370"/>
+                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="2*"/>
             </Grid.ColumnDefinitions>
 
             <Grid Grid.Column="0" Background="{DynamicResource Dark1}"
@@ -359,21 +359,110 @@
                             Background="#FF212140"
                             Click="StopRecordingButton_Click"/>
 
-                    <Button Content="Open" Width="70" Margin="0,0,5,0"
-                            Style="{DynamicResource DarkButton}"
-                            Visibility="Collapsed"/>
-
                 </WrapPanel>
 
             </Grid>
 
 
+            
+            
 
             <Grid Grid.Column="1" Background="{DynamicResource Dark1}"
                   Margin="5">
 
-                <TextBlock Margin="20" Text="MP3 MANIFEST EDITOR"
-                           Foreground="White" FontSize="30"/>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="65"/>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                    <RowDefinition Height="50"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0">
+
+                    <TextBlock Margin="0,5,0,0" Text="Manifest editor"
+                               Foreground="{DynamicResource Light0}" FontSize="25"
+                               HorizontalAlignment="Center" VerticalAlignment="Top"/>
+
+                    <TextBlock Margin="0,40,0,0"
+                               Text="Write, read or edit metadata and convert formats"
+                               Foreground="{DynamicResource Light1}" FontSize="11" FontWeight="Light"
+                               HorizontalAlignment="Center" VerticalAlignment="Top"/>
+
+                </Grid>
+
+                <Grid Grid.Row="1" Margin="15,5">
+
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+
+                    <Image Grid.Column="0" x:Name="infoCoverImageControl"
+                           Source="/Icons/coverImage-default.jpg"
+                           MaxHeight="300" MaxWidth="300"/>
+
+                    <StackPanel Grid.Column="1" Margin="20,10"
+                                VerticalAlignment="Center">
+
+                        <TextBlock Text="  Name" Foreground="{DynamicResource Light1}"
+                                   Margin="0,0,0,5"/>
+
+                        <TextBox Text="Song Name" Margin="0,0,0,15"/>
+
+                        <TextBlock Text="  Artist" Foreground="{DynamicResource Light1}"
+                                   Margin="0,0,0,5"/>
+
+                        <TextBox Text="Song Author" Margin="0,0,0,15"/>
+
+                        <TextBlock Text="  Album" Foreground="{DynamicResource Light1}"
+                                   Margin="0,0,0,5"/>
+
+                        <TextBox Text="Album Name" Margin="0,0,0,15"/>
+
+                    </StackPanel>
+
+                </Grid>
+
+                <Grid Grid.Row="2">
+
+                    <StackPanel Grid.Column="1" Margin="20,10">
+
+                        <TextBlock Text="  Year" Foreground="{DynamicResource Light1}"
+                                   Margin="0,0,0,5"/>
+
+                        <TextBox Text="Creation Year of the Song" Margin="0,0,0,15"
+                                 Width="150" HorizontalAlignment="Left"/>
+
+                        <TextBlock Text="  Genres (divided by comma)" Foreground="{DynamicResource Light1}"
+                                   Margin="0,0,0,5"/>
+
+                        <TextBox Text="Song Genres" Margin="0,0,0,15"/>
+
+                        <TextBlock Text="  Comment" Foreground="{DynamicResource Light1}"
+                                   Margin="0,0,0,5"/>
+
+                        <TextBox Text="Album Name" Margin="0,0,0,15"
+                                 Height="40" TextWrapping="Wrap"/>
+
+                    </StackPanel>
+
+                </Grid>
+
+                <Grid Grid.Row="3">
+
+                    <WrapPanel Grid.Row="1" Margin="20,10" VerticalAlignment="Bottom">
+
+                        <Button Content="Open" Width="70" Margin="0,0,5,0"
+                                Style="{DynamicResource DarkButton}"
+                                Background="#FF5B4626"/>
+
+                        <Button Content="Save" Width="70" Margin="0,0,30,0"
+                                Style="{DynamicResource DarkButton}"
+                                Background="#FF21402B"/>
+
+                    </WrapPanel>
+
+                </Grid>
 
             </Grid>
 
