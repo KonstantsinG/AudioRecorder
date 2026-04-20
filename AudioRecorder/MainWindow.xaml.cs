@@ -12,6 +12,8 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -45,6 +47,7 @@ namespace AudioRecorder
         private DispatcherTimer _refreshTimer;
         private DispatcherTimer _recordingTimer;
         private Stopwatch _recordingElapsedTimer;
+        private CancellationTokenSource _conversionCancellation;
         private uint _countdownCounter = 3;
         private string _openExtension;
         private byte[] _coverImageData;
@@ -59,7 +62,8 @@ namespace AudioRecorder
         {
             Idle,
             Countdown,
-            Recording
+            Recording,
+            Converting
         }
 
 
@@ -97,6 +101,20 @@ namespace AudioRecorder
                 {
                     _extensionIndex = value;
                     OnPropertyChanged(nameof(ExtensionIndex));
+                }
+            }
+        }
+
+        private int _conversionPercentage = 0;
+        public int ConversionPercentage
+        {
+            get => _conversionPercentage;
+            set
+            {
+                if (_conversionPercentage != value)
+                {
+                    _conversionPercentage = value;
+                    OnPropertyChanged(nameof(ConversionPercentage));
                 }
             }
         }
@@ -282,10 +300,11 @@ namespace AudioRecorder
             WindowState = WindowState.Minimized;
         }
 
-        protected override void OnClosed(EventArgs e)
+        private void Window_Closing(object sender, CancelEventArgs e)
         {
-            FreeResources();
-            base.OnClosed(e);
+            FreeRecordingResources();
+            if (_state == AppState.Converting)
+                AskBreakConversion(e);
         }
         #endregion
 
@@ -548,6 +567,20 @@ namespace AudioRecorder
             _coverImageData = null;
             _coverMimeType = null;
         }
+
+        private void ToggleConversionPanel(bool enable)
+        {
+            if (enable)
+            {
+                conversionPanel.Visibility = Visibility.Visible;
+                conversionPanel.IsHitTestVisible = true;
+            }
+            else
+            {
+                conversionPanel.Visibility = Visibility.Collapsed;
+                conversionPanel.IsHitTestVisible = false;
+            }
+        }
         #endregion
 
         #region REFRESH DATA
@@ -797,7 +830,7 @@ namespace AudioRecorder
             }
         }
 
-        private void FreeResources()
+        private void FreeRecordingResources()
         {
             if (_refreshTimer != null)
             {
@@ -828,9 +861,12 @@ namespace AudioRecorder
         }
         #endregion
 
-        #region METADATA
+        #region METADATA EVENTS
         private void OpenButton_Click(object sender, RoutedEventArgs e)
         {
+            if (_state != AppState.Idle)
+                return;
+
             OpenFileDialog dialog = new OpenFileDialog()
             {
                 Filter = "Audio files (*.wav;*.mp3)|*.wav;*.mp3",
@@ -856,64 +892,85 @@ namespace AudioRecorder
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
+            if (_state != AppState.Idle)
+                return;
+
             try
             {
-                // convert to other format
-                if (GetFileExtension() != _openExtension)
-                {
-                    if (_openExtension == ".wav") // .wav to .mp3
-                        ConvertWav2Mp3(FilePath + _openExtension, FullFilePath);
-                    else if (_openExtension == ".mp3") // .mp3 to .wav
-                        ConvertMp32Wav(FilePath + _openExtension, FullFilePath);
-                }
-
-                // write metadata
-                using (var tagFile = TagLib.File.Create(FullFilePath))
-                {
-                    // name
-                    tagFile.Tag.Title = InfoName ?? string.Empty;
-                    tagFile.Tag.TitleSort = InfoName ?? string.Empty;
-
-                    // artist
-                    tagFile.Tag.AlbumArtists = new[] { InfoArtist ?? string.Empty };
-                    tagFile.Tag.AlbumArtistsSort = new[] { InfoArtist ?? string.Empty };
-                    tagFile.Tag.Performers = new[] { InfoArtist ?? string.Empty };
-                    tagFile.Tag.PerformersSort = new[] { InfoArtist ?? string.Empty };
-                    tagFile.Tag.Composers = new[] { InfoArtist ?? string.Empty };
-                    tagFile.Tag.ComposersSort = new[] { InfoArtist ?? string.Empty };
-
-                    // album
-                    tagFile.Tag.Album = InfoAlbum ?? string.Empty;
-                    tagFile.Tag.AlbumSort = InfoAlbum ?? string.Empty;
-
-                    // year, comment, genres
-                    if (uint.TryParse(InfoYear, out uint year)) tagFile.Tag.Year = year;
-                    tagFile.Tag.Comment = InfoComment ?? string.Empty;
-                    tagFile.Tag.Genres = string.IsNullOrEmpty(InfoGenres) ? new string[] { } : InfoGenres.Split(',');
-
-                    // cover image
-                    if (!_usingDefaultCoverImage) // save cover image
-                    {
-                        TagLib.Picture pic = new TagLib.Picture
-                        {
-                            Type = TagLib.PictureType.FrontCover,
-                            Description = "Cover",
-                            MimeType = _coverMimeType ?? "image/jpeg",
-                            Data = new TagLib.ByteVector(_coverImageData)
-                        };
-                        tagFile.Tag.Pictures = new TagLib.IPicture[] { pic };
-                    }
-                    else // erase cover image
-                    {
-                        tagFile.Tag.Pictures = new TagLib.IPicture[] { };
-                    }
-
-                    tagFile.Save();
-                }
+                // check if user requested file conversion
+                if (!CheckForFileConversionRequest()) // if not, write metadata immediately
+                    WriteMetadata();
+                // otherwise we'll do it later after conversion
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Unable to write metadata: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        #endregion
+
+        #region METADATA EDITING
+        private bool CheckForFileConversionRequest()
+        {
+            bool conversionRequested = GetFileExtension() != _openExtension;
+
+            if (conversionRequested)
+            {
+                _state = AppState.Converting;
+                ToggleConversionPanel(true);
+
+                if (_openExtension == ".wav") // .wav to .mp3
+                    ConvertWav2Mp3Async(FilePath + _openExtension, FullFilePath);
+                else if (_openExtension == ".mp3") // .mp3 to .wav
+                    ConvertMp32WavAsync(FilePath + _openExtension, FullFilePath);
+            }
+
+            return conversionRequested;
+        }
+
+        private void WriteMetadata()
+        {
+            using (var tagFile = TagLib.File.Create(FullFilePath))
+            {
+                // name
+                tagFile.Tag.Title = InfoName ?? string.Empty;
+                tagFile.Tag.TitleSort = InfoName ?? string.Empty;
+
+                // artist
+                tagFile.Tag.AlbumArtists = new[] { InfoArtist ?? string.Empty };
+                tagFile.Tag.AlbumArtistsSort = new[] { InfoArtist ?? string.Empty };
+                tagFile.Tag.Performers = new[] { InfoArtist ?? string.Empty };
+                tagFile.Tag.PerformersSort = new[] { InfoArtist ?? string.Empty };
+                tagFile.Tag.Composers = new[] { InfoArtist ?? string.Empty };
+                tagFile.Tag.ComposersSort = new[] { InfoArtist ?? string.Empty };
+
+                // album
+                tagFile.Tag.Album = InfoAlbum ?? string.Empty;
+                tagFile.Tag.AlbumSort = InfoAlbum ?? string.Empty;
+
+                // year, comment, genres
+                if (uint.TryParse(InfoYear, out uint year)) tagFile.Tag.Year = year;
+                tagFile.Tag.Comment = InfoComment ?? string.Empty;
+                tagFile.Tag.Genres = string.IsNullOrEmpty(InfoGenres) ? new string[] { } : InfoGenres.Split(',');
+
+                // cover image
+                if (!_usingDefaultCoverImage) // save cover image
+                {
+                    TagLib.Picture pic = new TagLib.Picture
+                    {
+                        Type = TagLib.PictureType.FrontCover,
+                        Description = "Cover",
+                        MimeType = _coverMimeType ?? "image/jpeg",
+                        Data = new TagLib.ByteVector(_coverImageData)
+                    };
+                    tagFile.Tag.Pictures = new TagLib.IPicture[] { pic };
+                }
+                else // erase cover image
+                {
+                    tagFile.Tag.Pictures = new TagLib.IPicture[] { };
+                }
+
+                tagFile.Save();
             }
         }
 
@@ -967,21 +1024,152 @@ namespace AudioRecorder
         #endregion
 
         #region CONVERSIONS
-        private void ConvertWav2Mp3(string wavPath, string mp3Path, int bitRate = 192)
+        private async void ConvertWav2Mp3Async(string wavPath, string mp3Path, int bitRate = 192)
         {
-            using (var reader = new WaveFileReader(wavPath))
-            using (var writer = new LameMP3FileWriter(mp3Path, reader.WaveFormat, bitRate))
+            _conversionCancellation = new CancellationTokenSource();
+            string tempPath = Path.GetTempFileName();
+
+            try
             {
-                reader.CopyTo(writer);
+                await Task.Run(() =>
+                {
+                    using (var reader = new WaveFileReader(wavPath))
+                    using (var writer = new LameMP3FileWriter(tempPath, reader.WaveFormat, bitRate))
+                    {
+                        // full data amount
+                        long totalBytes = reader.Length;
+                        long bytesProcessed = 0;
+                        byte[] buffer = new byte[8192]; // 8 KB buffer
+
+                        int bytesRead;
+                        while ((bytesRead = reader.Read(buffer, 0, buffer.Length)) > 0)
+                        {
+                            _conversionCancellation.Token.ThrowIfCancellationRequested(); // throw exception if someone requested it
+                            writer.Write(buffer, 0, bytesRead);
+                            bytesProcessed += bytesRead;
+
+                            // compute and report progress
+                            ConversionPercentage = (int)((double)bytesProcessed / totalBytes * 100);
+                        }
+                    }
+                });
             }
+            catch (OperationCanceledException)
+            {
+                // free cancellation token and erase temp file
+                _conversionCancellation.Dispose();
+                _conversionCancellation = null;
+                EraseTempFile(tempPath);
+                return;
+            }
+
+            // free cancellation token
+            _conversionCancellation.Dispose();
+            _conversionCancellation = null;
+
+            // move converted file from temp to destination directory
+            MoveTempFile(tempPath, mp3Path);
+
+            // once we finished conversion, write metadata to a new file
+            WriteMetadata();
+
+            // switch the state and toggle the progress bar
+            _state = AppState.Idle;
+            ToggleConversionPanel(false);
         }
 
-        private void ConvertMp32Wav(string mp3Path, string wavPath)
+        private async void ConvertMp32WavAsync(string mp3Path, string wavPath)
         {
-            using (var reader = new MediaFoundationReader(mp3Path))
-            using (var writer = new WaveFileWriter(wavPath, reader.WaveFormat))
+            _conversionCancellation = new CancellationTokenSource();
+            string tempPath = Path.GetTempFileName();
+
+            try
             {
-                reader.CopyTo(writer);
+                await Task.Run(() =>
+                {
+                    using (var reader = new MediaFoundationReader(mp3Path))
+                    using (var writer = new WaveFileWriter(tempPath, reader.WaveFormat))
+                    {
+                        // full data amount
+                        long totalBytes = reader.Length;
+                        long bytesProcessed = 0;
+                        byte[] buffer = new byte[8192]; // 8 KB buffer
+
+                        int bytesRead;
+                        while ((bytesRead = reader.Read(buffer, 0, buffer.Length)) > 0)
+                        {
+                            _conversionCancellation.Token.ThrowIfCancellationRequested(); // throw exception if someone requested it
+                            writer.Write(buffer, 0, bytesRead);
+                            bytesProcessed += bytesRead;
+
+                            // compute and report progress
+                            ConversionPercentage = (int)((double)bytesProcessed / totalBytes * 100);
+                        }
+                    }
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                // free cancellation token and erase temp file
+                _conversionCancellation.Dispose();
+                _conversionCancellation = null;
+                EraseTempFile(tempPath);
+                return;
+            }
+
+            // free cancellation token
+            _conversionCancellation.Dispose();
+            _conversionCancellation = null;
+
+            // move converted file from temp to destination directory
+            MoveTempFile(tempPath, wavPath);
+
+            // switch the state and toggle the progress bar
+            _state = AppState.Idle;
+            ToggleConversionPanel(false);
+
+            // once we finished conversion, write metadata to a new file
+            WriteMetadata();
+        }
+
+        private void EraseTempFile(string tempPath)
+        {
+            if (File.Exists(tempPath))
+                File.Delete(tempPath);
+        }
+
+        private void MoveTempFile(string tempPath, string destinationPath)
+        {
+            if (File.Exists(destinationPath))
+                File.Delete(destinationPath);
+
+            File.Move(tempPath, destinationPath);
+        }
+
+        private async void AskBreakConversion(CancelEventArgs e)
+        {
+            var result = MessageBox.Show(
+                "The file conversion is not yet complete. If you close the application now, the entire unfinished process will be lost.\n\n" +
+                "Wait for the convertion to be completed?",
+                "Warning",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.No) // no pressed -> erase conversion temporary file
+            {
+                _conversionCancellation?.Cancel();
+                await Task.Delay(500);
+            }
+            else if (result == MessageBoxResult.Yes) // yes pressed -> wait until conversion is finished
+            {
+                e.Cancel = true; // temporary cancel shutdown
+
+                while (_state == AppState.Converting)
+                {
+                    await Task.Delay(100);
+                }
+
+                Application.Current.Shutdown();
             }
         }
         #endregion
