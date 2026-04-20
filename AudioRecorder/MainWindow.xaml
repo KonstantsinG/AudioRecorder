@@ -408,17 +408,20 @@
                         <TextBlock Text="  Name" Foreground="{DynamicResource Light1}"
                                    Margin="0,0,0,5"/>
 
-                        <TextBox Text="Song Name" Margin="0,0,0,15"/>
+                        <TextBox Text="{Binding InfoName, RelativeSource={RelativeSource AncestorType=Window}}"
+                                 Margin="0,0,0,15"/>
 
                         <TextBlock Text="  Artist" Foreground="{DynamicResource Light1}"
                                    Margin="0,0,0,5"/>
 
-                        <TextBox Text="Song Author" Margin="0,0,0,15"/>
+                        <TextBox Text="{Binding InfoArtist, RelativeSource={RelativeSource AncestorType=Window}}"
+                                 Margin="0,0,0,15"/>
 
                         <TextBlock Text="  Album" Foreground="{DynamicResource Light1}"
                                    Margin="0,0,0,5"/>
 
-                        <TextBox Text="Album Name" Margin="0,0,0,15"/>
+                        <TextBox Text="{Binding InfoAlbum, RelativeSource={RelativeSource AncestorType=Window}}"
+                                 Margin="0,0,0,15"/>
 
                     </StackPanel>
 
@@ -431,18 +434,21 @@
                         <TextBlock Text="  Year" Foreground="{DynamicResource Light1}"
                                    Margin="0,0,0,5"/>
 
-                        <TextBox Text="Creation Year of the Song" Margin="0,0,0,15"
+                        <TextBox Text="{Binding InfoYear, RelativeSource={RelativeSource AncestorType=Window}}"
+                                 Margin="0,0,0,15"
                                  Width="150" HorizontalAlignment="Left"/>
 
                         <TextBlock Text="  Genres (divided by comma)" Foreground="{DynamicResource Light1}"
                                    Margin="0,0,0,5"/>
 
-                        <TextBox Text="Song Genres" Margin="0,0,0,15"/>
+                        <TextBox Text="{Binding InfoGenres, RelativeSource={RelativeSource AncestorType=Window}}"
+                                 Margin="0,0,0,15"/>
 
                         <TextBlock Text="  Comment" Foreground="{DynamicResource Light1}"
                                    Margin="0,0,0,5"/>
 
-                        <TextBox Text="Album Name" Margin="0,0,0,15"
+                        <TextBox Text="{Binding InfoComment, RelativeSource={RelativeSource AncestorType=Window}}"
+                                 Margin="0,0,0,15"
                                  Height="40" TextWrapping="Wrap"/>
 
                     </StackPanel>
@@ -455,11 +461,13 @@
 
                         <Button Content="Open" Width="70" Margin="0,0,5,0"
                                 Style="{DynamicResource DarkButton}"
-                                Background="#FF5B4626"/>
+                                Background="#FF5B4626"
+                                Click="OpenButton_Click"/>
 
                         <Button Content="Save" Width="70" Margin="0,0,30,0"
                                 Style="{DynamicResource DarkButton}"
-                                Background="#FF21402B"/>
+                                Background="#FF21402B"
+                                Click="SaveButton_Click"/>
 
                     </WrapPanel>
 

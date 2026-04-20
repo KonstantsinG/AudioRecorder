@@ -45,6 +45,8 @@ namespace AudioRecorder
         private DispatcherTimer _recordingTimer;
         private Stopwatch _recordingElapsedTimer;
         private uint _countdownCounter = 3;
+        private string _openExtension;
+        //private byte[] _coverImageData;
 
         public ObservableCollection<DeviceControl> Devices = new ObservableCollection<DeviceControl>();
         public ObservableCollection<TextBlock> Processes = new ObservableCollection<TextBlock>();
@@ -62,6 +64,7 @@ namespace AudioRecorder
         private static readonly string _defaultName = $"recording_{DateTime.Now:dd_MM_yyyy}";
         private static readonly string _defaultPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic),
                                                                    _defaultName);
+        //private static readonly string _defaultCoverImagePath = "/Icons/coverImage-default.jpg";
 
         private string _filePath = _defaultPath;
         public string FilePath
@@ -774,6 +777,117 @@ namespace AudioRecorder
         }
         #endregion
 
+        #region METADATA
+        private void OpenButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog dialog = new OpenFileDialog()
+            {
+                Filter = "Wave files (*.wav)|*.wav|MP3 files (*.mp3)|*.mp3",
+                FilterIndex = 1
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                // save file path without extension
+                FilePath = Path.Combine(Path.GetDirectoryName(dialog.FileName),
+                           Path.GetFileNameWithoutExtension(dialog.FileName));
+
+                // save and set file extension
+                _openExtension = Path.GetExtension(dialog.FileName);
+                if (GetFileExtension() != _openExtension)
+                    SetFileExtension(_openExtension);
+
+                // load file metadata
+                ReadMetadata(dialog.FileName);
+            }
+        }
+
+        private void SaveButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                using (var tagFile = TagLib.File.Create(FullFilePath))
+                {
+                    // name
+                    tagFile.Tag.Title = InfoName;
+                    tagFile.Tag.TitleSort = InfoName;
+
+                    // artist
+                    tagFile.Tag.AlbumArtists = new[] { InfoArtist };
+                    tagFile.Tag.AlbumArtistsSort = new[] { InfoArtist };
+                    tagFile.Tag.Performers = new[] { InfoArtist };
+                    tagFile.Tag.PerformersSort = new[] { InfoArtist };
+                    tagFile.Tag.Composers = new[] { InfoArtist };
+                    tagFile.Tag.ComposersSort = new[] { InfoArtist };
+
+                    // album
+                    tagFile.Tag.Album = InfoAlbum;
+                    tagFile.Tag.AlbumSort = InfoAlbum;
+
+                    // year, comment, genres
+                    tagFile.Tag.Year = uint.Parse(InfoYear);
+                    tagFile.Tag.Comment = InfoComment;
+                    tagFile.Tag.Genres = InfoGenres.Split(',');
+
+                    // cover image
+                    //var data = System.IO.File.ReadAllBytes("C:/Users/galaj/Downloads/coverImage-default.jpg");
+                    //TagLib.Picture pic = new TagLib.Picture
+                    //{
+                    //    Type = TagLib.PictureType.FrontCover,
+                    //    Description = "Cover",
+                    //    MimeType = System.Net.Mime.MediaTypeNames.Image.Jpeg,
+                    //    Data = new TagLib.ByteVector(data)
+                    //};
+                    //tagFile.Tag.Pictures = new TagLib.IPicture[] { pic };
+
+                    tagFile.Save();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Unable to write metadata: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void ReadMetadata(string path)
+        {
+            using (var tagFile = TagLib.File.Create(path))
+            {
+                // name
+                if (!string.IsNullOrEmpty(tagFile.Tag.Title)) InfoName = tagFile.Tag.Title;
+                else if (!string.IsNullOrEmpty(tagFile.Tag.TitleSort)) InfoName = tagFile.Tag.TitleSort;
+                else InfoName = string.Empty;
+
+                // artist
+                if (tagFile.Tag.AlbumArtists.Length > 0) InfoArtist = tagFile.Tag.AlbumArtists[0];
+                else if (tagFile.Tag.AlbumArtistsSort.Length > 0) InfoArtist = tagFile.Tag.AlbumArtistsSort[0];
+                else if (tagFile.Tag.Performers.Length > 0) InfoArtist = tagFile.Tag.Performers[0];
+                else if (tagFile.Tag.PerformersSort.Length > 0) InfoArtist = tagFile.Tag.PerformersSort[0];
+                else if (tagFile.Tag.Composers.Length > 0) InfoArtist = tagFile.Tag.Composers[0];
+                else if (tagFile.Tag.ComposersSort.Length > 0) InfoArtist = tagFile.Tag.ComposersSort[0];
+                else InfoArtist = string.Empty;
+
+                // album
+                if (!string.IsNullOrEmpty(tagFile.Tag.Album)) InfoAlbum = tagFile.Tag.Album;
+                else if (!string.IsNullOrEmpty(tagFile.Tag.AlbumSort)) InfoAlbum = tagFile.Tag.AlbumSort;
+                else InfoAlbum = string.Empty;
+
+                // year, comment, genres
+                if (tagFile.Tag.Year != default) InfoYear = tagFile.Tag.Year.ToString();
+                else InfoYear = string.Empty;
+
+                if (!string.IsNullOrEmpty(tagFile.Tag.Comment)) InfoComment = tagFile.Tag.Comment;
+                else InfoComment = string.Empty;
+
+                if (tagFile.Tag.Genres.Length > 0) InfoGenres = string.Join(", ", tagFile.Tag.Genres);
+                else InfoGenres = string.Empty;
+
+                // cover image
+
+            }
+        }
+        #endregion
+
         #region OTHER FUNCTIONS
         private void SelectFileLocation()
         {
@@ -794,7 +908,7 @@ namespace AudioRecorder
 
         private string GetFileExtension()
         {
-            switch (extensionCBox.SelectedIndex)
+            switch (ExtensionIndex)
             {
                 case 0:
                     return ".wav";
@@ -804,6 +918,20 @@ namespace AudioRecorder
 
                 default:
                     return string.Empty;
+            }
+        }
+
+        private void SetFileExtension(string extension)
+        {
+            switch (extension)
+            {
+                case ".wav":
+                    ExtensionIndex = 0;
+                    break;
+
+                case ".mp3":
+                    ExtensionIndex = 1;
+                    break;
             }
         }
 
