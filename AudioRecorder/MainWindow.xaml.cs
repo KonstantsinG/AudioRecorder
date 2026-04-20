@@ -1,8 +1,8 @@
 ﻿using Microsoft.Win32;
 using NAudio.CoreAudioApi;
 using NAudio.CoreAudioApi.Interfaces;
-using NAudio.Wave;
 using NAudio.Lame;
+using NAudio.Wave;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -12,14 +12,16 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Threading;
 using System.Windows.Media.Imaging;
+using System.Windows.Resources;
+using System.Windows.Threading;
 
 namespace AudioRecorder
 {
@@ -46,7 +48,9 @@ namespace AudioRecorder
         private Stopwatch _recordingElapsedTimer;
         private uint _countdownCounter = 3;
         private string _openExtension;
-        //private byte[] _coverImageData;
+        private byte[] _coverImageData;
+        private string _coverMimeType;
+        private bool _usingDefaultCoverImage = true;
 
         public ObservableCollection<DeviceControl> Devices = new ObservableCollection<DeviceControl>();
         public ObservableCollection<TextBlock> Processes = new ObservableCollection<TextBlock>();
@@ -64,7 +68,7 @@ namespace AudioRecorder
         private static readonly string _defaultName = $"recording_{DateTime.Now:dd_MM_yyyy}";
         private static readonly string _defaultPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic),
                                                                    _defaultName);
-        //private static readonly string _defaultCoverImagePath = "/Icons/coverImage-default.jpg";
+        private static readonly string _defaultCoverImageUri = "pack://application:,,,/Icons/coverImage-default.jpg";
 
         private string _filePath = _defaultPath;
         public string FilePath
@@ -318,6 +322,16 @@ namespace AudioRecorder
         {
             SelectFileLocation();
         }
+
+        private void CoverImageControl_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            SelectCoverImage();
+        }
+
+        private void CoverImageControl_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            LoadDefaultCoverImage();
+        }
         #endregion
 
         #region RECORDING EVENTS
@@ -496,6 +510,44 @@ namespace AudioRecorder
 
                 appLogo.Fill = new SolidColorBrush(Colors.White);
             }
+        }
+
+        private void LoadDefaultCoverImage()
+        {
+            try
+            {
+                _usingDefaultCoverImage = true;
+                var resourceUri = new Uri(_defaultCoverImageUri, UriKind.Absolute);
+                StreamResourceInfo resourceInfo = Application.GetResourceStream(resourceUri);
+
+                if (resourceInfo != null)
+                {
+                    using (var stream = resourceInfo.Stream)
+                    {
+                        _coverImageData = new byte[stream.Length];
+                        stream.Read(_coverImageData, 0, _coverImageData.Length);
+                    }
+
+                    _coverMimeType = "image/jpeg";
+                    DisplayCoverImage(_coverImageData);
+                }
+                else
+                {
+                    ClearCoverImage();
+                }
+            }
+            catch (Exception)
+            {
+                ClearCoverImage();
+            }
+        }
+
+        private void ClearCoverImage()
+        {
+            _usingDefaultCoverImage = true;
+            infoCoverImageControl.Source = null;
+            _coverImageData = null;
+            _coverMimeType = null;
         }
         #endregion
 
@@ -782,7 +834,8 @@ namespace AudioRecorder
         {
             OpenFileDialog dialog = new OpenFileDialog()
             {
-                Filter = "Wave files (*.wav)|*.wav|MP3 files (*.mp3)|*.mp3",
+                Filter = "Audio files (*.wav;*.mp3)|*.wav;*.mp3",
+                Multiselect = false,
                 FilterIndex = 1
             };
 
@@ -809,36 +862,42 @@ namespace AudioRecorder
                 using (var tagFile = TagLib.File.Create(FullFilePath))
                 {
                     // name
-                    tagFile.Tag.Title = InfoName;
-                    tagFile.Tag.TitleSort = InfoName;
+                    tagFile.Tag.Title = InfoName ?? string.Empty;
+                    tagFile.Tag.TitleSort = InfoName ?? string.Empty;
 
                     // artist
-                    tagFile.Tag.AlbumArtists = new[] { InfoArtist };
-                    tagFile.Tag.AlbumArtistsSort = new[] { InfoArtist };
-                    tagFile.Tag.Performers = new[] { InfoArtist };
-                    tagFile.Tag.PerformersSort = new[] { InfoArtist };
-                    tagFile.Tag.Composers = new[] { InfoArtist };
-                    tagFile.Tag.ComposersSort = new[] { InfoArtist };
+                    tagFile.Tag.AlbumArtists = new[] { InfoArtist ?? string.Empty };
+                    tagFile.Tag.AlbumArtistsSort = new[] { InfoArtist ?? string.Empty };
+                    tagFile.Tag.Performers = new[] { InfoArtist ?? string.Empty };
+                    tagFile.Tag.PerformersSort = new[] { InfoArtist ?? string.Empty };
+                    tagFile.Tag.Composers = new[] { InfoArtist ?? string.Empty };
+                    tagFile.Tag.ComposersSort = new[] { InfoArtist ?? string.Empty };
 
                     // album
-                    tagFile.Tag.Album = InfoAlbum;
-                    tagFile.Tag.AlbumSort = InfoAlbum;
+                    tagFile.Tag.Album = InfoAlbum ?? string.Empty;
+                    tagFile.Tag.AlbumSort = InfoAlbum ?? string.Empty;
 
                     // year, comment, genres
-                    tagFile.Tag.Year = uint.Parse(InfoYear);
-                    tagFile.Tag.Comment = InfoComment;
-                    tagFile.Tag.Genres = InfoGenres.Split(',');
+                    if (uint.TryParse(InfoYear, out uint year)) tagFile.Tag.Year = year;
+                    tagFile.Tag.Comment = InfoComment ?? string.Empty;
+                    tagFile.Tag.Genres = string.IsNullOrEmpty(InfoGenres) ? new string[] { } : InfoGenres.Split(',');
 
                     // cover image
-                    //var data = System.IO.File.ReadAllBytes("C:/Users/galaj/Downloads/coverImage-default.jpg");
-                    //TagLib.Picture pic = new TagLib.Picture
-                    //{
-                    //    Type = TagLib.PictureType.FrontCover,
-                    //    Description = "Cover",
-                    //    MimeType = System.Net.Mime.MediaTypeNames.Image.Jpeg,
-                    //    Data = new TagLib.ByteVector(data)
-                    //};
-                    //tagFile.Tag.Pictures = new TagLib.IPicture[] { pic };
+                    if (!_usingDefaultCoverImage) // save cover image
+                    {
+                        TagLib.Picture pic = new TagLib.Picture
+                        {
+                            Type = TagLib.PictureType.FrontCover,
+                            Description = "Cover",
+                            MimeType = _coverMimeType ?? "image/jpeg",
+                            Data = new TagLib.ByteVector(_coverImageData)
+                        };
+                        tagFile.Tag.Pictures = new TagLib.IPicture[] { pic };
+                    }
+                    else // erase cover image
+                    {
+                        tagFile.Tag.Pictures = new TagLib.IPicture[] { };
+                    }
 
                     tagFile.Save();
                 }
@@ -883,12 +942,109 @@ namespace AudioRecorder
                 else InfoGenres = string.Empty;
 
                 // cover image
-
+                if (tagFile.Tag.Pictures.Length > 0)
+                {
+                    var picture = tagFile.Tag.Pictures[0];
+                    _coverImageData = picture.Data.Data;
+                    _coverMimeType = picture.MimeType;
+                    DisplayCoverImage(_coverImageData);
+                }
+                else
+                {
+                    LoadDefaultCoverImage();
+                }
             }
         }
         #endregion
 
         #region OTHER FUNCTIONS
+        private void SelectCoverImage()
+        {
+            var openFileDialog = new OpenFileDialog
+            {
+                Filter = "Image files (*.jpg;*.jpeg;*.png;*.bmp)|*.jpg;*.jpeg;*.png;*.bmp|All files (*.*)|*.*",
+                Title = "Select cover image",
+                Multiselect = false
+            };
+
+            try
+            {
+                if (openFileDialog.ShowDialog() == true)
+                {
+                    // selected file must be less than 5 MB in size
+                    var fileInfo = new FileInfo(openFileDialog.FileName);
+                    if (fileInfo.Length > 5 * 1024 * 1024)
+                    {
+                        MessageBox.Show("Cover image must be less than 5 MB in size.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    // select mime-type
+                    string extension = Path.GetExtension(openFileDialog.FileName).ToLower();
+                    switch (extension)
+                    {
+                        case ".jpg":
+                            _coverMimeType = "image/jpeg";
+                            break;
+
+                        case ".jpeg":
+                            _coverMimeType = "image/jpeg";
+                            break;
+
+                        case ".png":
+                            _coverMimeType = "image/png";
+                            break;
+
+                        case ".bmp":
+                            _coverMimeType = "image/bmp";
+                            break;
+
+                        default:
+                            _coverMimeType = "image/jpeg";
+                            break;
+                    }
+
+                    _usingDefaultCoverImage = false;
+                    _coverImageData = File.ReadAllBytes(openFileDialog.FileName);
+                    DisplayCoverImage(_coverImageData);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Cover image loading error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                LoadDefaultCoverImage();
+            }
+        }
+
+        private void DisplayCoverImage(byte[] data)
+        {
+            if (data == null || data.Length == 0)
+            {
+                ClearCoverImage();
+                return;
+            }
+
+            try
+            {
+                using (var ms = new MemoryStream(data))
+                {
+                    BitmapImage bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.StreamSource = ms;
+                    bitmap.EndInit();
+                    bitmap.Freeze(); // allow using image in different threads
+
+                    infoCoverImageControl.Source = bitmap;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Image diplay error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                ClearCoverImage();
+            }
+        }
+
         private void SelectFileLocation()
         {
             SaveFileDialog saveFileDialog = new SaveFileDialog

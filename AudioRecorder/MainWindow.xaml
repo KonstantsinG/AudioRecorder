@@ -394,13 +394,37 @@
                 <Grid Grid.Row="1" Margin="15,5">
 
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition/>
+                        <ColumnDefinition MinWidth="180"/>
                         <ColumnDefinition/>
                     </Grid.ColumnDefinitions>
 
+                    <Rectangle MinHeight="150" MinWidth="150"
+                               MaxHeight="300" MaxWidth="300"
+                               Fill="{DynamicResource Dark0}"
+                               MouseRightButtonDown="CoverImageControl_MouseRightButtonDown"
+                               MouseLeftButtonDown="CoverImageControl_MouseLeftButtonDown"/>
+
                     <Image Grid.Column="0" x:Name="infoCoverImageControl"
                            Source="/Icons/coverImage-default.jpg"
-                           MaxHeight="300" MaxWidth="300"/>
+                           MinHeight="150" MinWidth="150"
+                           MaxHeight="300" MaxWidth="300"
+                           MouseRightButtonDown="CoverImageControl_MouseRightButtonDown"
+                           MouseLeftButtonDown="CoverImageControl_MouseLeftButtonDown">
+                        <Image.ToolTip>
+                            <ToolTip Background="{DynamicResource Dark1}" 
+                                     BorderBrush="{DynamicResource Dark3}" 
+                                     BorderThickness="1">
+                                <StackPanel Margin="3">
+                                    <TextBlock Text="Left mouse click to load image" 
+                                               FontSize="10"
+                                               Foreground="{DynamicResource Light0}"/>
+                                    <TextBlock Text="Right mouse click to erase image" 
+                                               FontSize="10"
+                                               Foreground="{DynamicResource Light0}"/>
+                                </StackPanel>
+                            </ToolTip>
+                        </Image.ToolTip>
+                    </Image>
 
                     <StackPanel Grid.Column="1" Margin="20,10"
                                 VerticalAlignment="Center">
