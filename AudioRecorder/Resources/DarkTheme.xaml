@@ -166,6 +166,61 @@
 
 
 
+    <!-- ___________________________________________ TextBox styles ___________________________________________ -->
+    <Style TargetType="TextBox">
+        <Setter Property="Background" Value="{DynamicResource Dark2}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Light1}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Dark3}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="1"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource Light1}"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource Accent}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="Border"
+                        CornerRadius="3"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}">
+
+                        <ScrollViewer x:Name="PART_ContentHost" 
+                                  Margin="{TemplateBinding Padding}"
+                                  VerticalAlignment="Center"/>
+
+                    </Border>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource Dark2}"/>
+                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource Light2}"/>
+                        </Trigger>
+
+                        <Trigger Property="IsFocused" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource Dark2}"/>
+                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                            <Setter TargetName="Border" Property="BorderThickness" Value="1.5"/>
+                        </Trigger>
+
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource Dark2}"/>
+                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource Dark3}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Light2}"/>
+                        </Trigger>
+
+                        <Trigger Property="IsReadOnly" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="{DynamicResource Dark1}"/>
+                            <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource Dark3}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+
+
     <!-- ___________________________________________ Button styles ___________________________________________ -->
     <Style x:Key="DarkButton" TargetType="Button">
         <Setter Property="OverridesDefaultStyle" Value="True"/>
