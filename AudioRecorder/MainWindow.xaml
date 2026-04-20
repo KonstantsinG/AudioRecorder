@@ -451,10 +451,10 @@
                                 <StackPanel Margin="3">
                                     <TextBlock Text="Left mouse click to load image" 
                                                FontSize="10"
-                                               Foreground="{DynamicResource Light0}"/>
+                                               Foreground="{DynamicResource Light1}"/>
                                     <TextBlock Text="Right mouse click to erase image" 
                                                FontSize="10"
-                                               Foreground="{DynamicResource Light0}"/>
+                                               Foreground="{DynamicResource Light1}"/>
                                 </StackPanel>
                             </ToolTip>
                         </Image.ToolTip>
@@ -463,23 +463,21 @@
                     <StackPanel Grid.Column="1" Margin="10,10,0,0"
                                 VerticalAlignment="Center">
 
-                        <TextBlock Text="  Name" Foreground="{DynamicResource Light1}"
-                                   Margin="0,0,0,5"/>
-
                         <TextBox Text="{Binding InfoName, RelativeSource={RelativeSource AncestorType=Window}}"
-                                 Margin="0,0,0,15"/>
-
-                        <TextBlock Text="  Artist" Foreground="{DynamicResource Light1}"
-                                   Margin="0,0,0,5"/>
+                                 Margin="0,0,0,20" Tag=" Enter name..."
+                                 Style="{StaticResource PlaceholderTextBox}"/>
 
                         <TextBox Text="{Binding InfoArtist, RelativeSource={RelativeSource AncestorType=Window}}"
-                                 Margin="0,0,0,15"/>
-
-                        <TextBlock Text="  Album" Foreground="{DynamicResource Light1}"
-                                   Margin="0,0,0,5"/>
+                                 Margin="0,0,0,20" Tag=" Enter artist..."
+                                 Style="{StaticResource PlaceholderTextBox}"/>
 
                         <TextBox Text="{Binding InfoAlbum, RelativeSource={RelativeSource AncestorType=Window}}"
-                                 Margin="0,0,0,15"/>
+                                 Margin="0,0,0,20" Tag=" Enter album name..."
+                                 Style="{StaticResource PlaceholderTextBox}"/>
+
+                        <TextBox Text="{Binding InfoYear, RelativeSource={RelativeSource AncestorType=Window}}"
+                                 Margin="0,0,0,20" Tag=" Enter release year..."
+                                 Style="{StaticResource PlaceholderTextBox}"/>
 
                     </StackPanel>
 
@@ -489,25 +487,14 @@
 
                     <StackPanel Grid.Column="1" Margin="20,10,20,0">
 
-                        <TextBlock Text="  Year" Foreground="{DynamicResource Light1}"
-                                   Margin="0,0,0,5"/>
-
-                        <TextBox Text="{Binding InfoYear, RelativeSource={RelativeSource AncestorType=Window}}"
-                                 Margin="0,0,0,15"
-                                 Width="150" HorizontalAlignment="Left"/>
-
-                        <TextBlock Text="  Genres (divided by comma)" Foreground="{DynamicResource Light1}"
-                                   Margin="0,0,0,5"/>
-
                         <TextBox Text="{Binding InfoGenres, RelativeSource={RelativeSource AncestorType=Window}}"
-                                 Margin="0,0,0,15"/>
-
-                        <TextBlock Text="  Comment" Foreground="{DynamicResource Light1}"
-                                   Margin="0,0,0,5"/>
+                                 Margin="0,0,0,15" Tag=" Enter genres (divided by comma)"
+                                 Style="{StaticResource PlaceholderTextBox}"/>
 
                         <TextBox Text="{Binding InfoComment, RelativeSource={RelativeSource AncestorType=Window}}"
-                                 Margin="0,0,0,15"
-                                 Height="40" TextWrapping="Wrap"/>
+                                 Margin="0,0,0,15" Tag=" Comment..."
+                                 Height="50" TextWrapping="Wrap"
+                                 Style="{StaticResource PlaceholderTextBox}"/>
 
                     </StackPanel>
 

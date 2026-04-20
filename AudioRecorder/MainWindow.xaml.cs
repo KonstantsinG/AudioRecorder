@@ -461,6 +461,54 @@ namespace AudioRecorder
         }
         #endregion
 
+        #region METADATA EVENTS
+        private void OpenButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_state != AppState.Idle)
+                return;
+
+            OpenFileDialog dialog = new OpenFileDialog()
+            {
+                Filter = "Audio files (*.wav;*.mp3)|*.wav;*.mp3",
+                Multiselect = false,
+                FilterIndex = 1
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                // save file path without extension
+                FilePath = Path.Combine(Path.GetDirectoryName(dialog.FileName),
+                           Path.GetFileNameWithoutExtension(dialog.FileName));
+
+                // save and set file extension
+                _openExtension = Path.GetExtension(dialog.FileName);
+                if (GetFileExtension() != _openExtension)
+                    SetFileExtension(_openExtension);
+
+                // load file metadata
+                ReadMetadata(dialog.FileName);
+            }
+        }
+
+        private void SaveButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_state != AppState.Idle)
+                return;
+
+            try
+            {
+                // check if user requested file conversion
+                if (!CheckForFileConversionRequest()) // if not, write metadata immediately
+                    WriteMetadata(FullFilePath);
+                // otherwise we'll do it later after conversion
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Unable to write metadata: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        #endregion
+
 
         #region STYLES CONTROLS
         private void SetupCountdownPanel(bool enablePanel, bool enableCounter)
@@ -858,54 +906,6 @@ namespace AudioRecorder
             if (_loopbackCapture != null)
                 _loopbackCapture.StopRecording();
             CleanupCapture();
-        }
-        #endregion
-
-        #region METADATA EVENTS
-        private void OpenButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (_state != AppState.Idle)
-                return;
-
-            OpenFileDialog dialog = new OpenFileDialog()
-            {
-                Filter = "Audio files (*.wav;*.mp3)|*.wav;*.mp3",
-                Multiselect = false,
-                FilterIndex = 1
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                // save file path without extension
-                FilePath = Path.Combine(Path.GetDirectoryName(dialog.FileName),
-                           Path.GetFileNameWithoutExtension(dialog.FileName));
-
-                // save and set file extension
-                _openExtension = Path.GetExtension(dialog.FileName);
-                if (GetFileExtension() != _openExtension)
-                    SetFileExtension(_openExtension);
-
-                // load file metadata
-                ReadMetadata(dialog.FileName);
-            }
-        }
-
-        private void SaveButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (_state != AppState.Idle)
-                return;
-
-            try
-            {
-                // check if user requested file conversion
-                if (!CheckForFileConversionRequest()) // if not, write metadata immediately
-                    WriteMetadata(FullFilePath);
-                // otherwise we'll do it later after conversion
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Unable to write metadata: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
         }
         #endregion
 
