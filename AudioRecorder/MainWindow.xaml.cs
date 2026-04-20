@@ -12,7 +12,6 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -859,6 +858,16 @@ namespace AudioRecorder
         {
             try
             {
+                // convert to other format
+                if (GetFileExtension() != _openExtension)
+                {
+                    if (_openExtension == ".wav") // .wav to .mp3
+                        ConvertWav2Mp3(FilePath + _openExtension, FullFilePath);
+                    else if (_openExtension == ".mp3") // .mp3 to .wav
+                        ConvertMp32Wav(FilePath + _openExtension, FullFilePath);
+                }
+
+                // write metadata
                 using (var tagFile = TagLib.File.Create(FullFilePath))
                 {
                     // name
@@ -953,6 +962,26 @@ namespace AudioRecorder
                 {
                     LoadDefaultCoverImage();
                 }
+            }
+        }
+        #endregion
+
+        #region CONVERSIONS
+        private void ConvertWav2Mp3(string wavPath, string mp3Path, int bitRate = 192)
+        {
+            using (var reader = new WaveFileReader(wavPath))
+            using (var writer = new LameMP3FileWriter(mp3Path, reader.WaveFormat, bitRate))
+            {
+                reader.CopyTo(writer);
+            }
+        }
+
+        private void ConvertMp32Wav(string mp3Path, string wavPath)
+        {
+            using (var reader = new MediaFoundationReader(mp3Path))
+            using (var writer = new WaveFileWriter(wavPath, reader.WaveFormat))
+            {
+                reader.CopyTo(writer);
             }
         }
         #endregion
