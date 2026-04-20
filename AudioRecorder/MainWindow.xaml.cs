@@ -899,7 +899,7 @@ namespace AudioRecorder
             {
                 // check if user requested file conversion
                 if (!CheckForFileConversionRequest()) // if not, write metadata immediately
-                    WriteMetadata();
+                    WriteMetadata(FullFilePath);
                 // otherwise we'll do it later after conversion
             }
             catch (Exception ex)
@@ -928,9 +928,9 @@ namespace AudioRecorder
             return conversionRequested;
         }
 
-        private void WriteMetadata()
+        private void WriteMetadata(string path)
         {
-            using (var tagFile = TagLib.File.Create(FullFilePath))
+            using (var tagFile = TagLib.File.Create(path))
             {
                 // name
                 tagFile.Tag.Title = InfoName ?? string.Empty;
@@ -951,7 +951,8 @@ namespace AudioRecorder
                 // year, comment, genres
                 if (uint.TryParse(InfoYear, out uint year)) tagFile.Tag.Year = year;
                 tagFile.Tag.Comment = InfoComment ?? string.Empty;
-                tagFile.Tag.Genres = string.IsNullOrEmpty(InfoGenres) ? new string[] { } : InfoGenres.Split(',');
+                tagFile.Tag.Genres = string.IsNullOrWhiteSpace(InfoGenres) ? new string[] { } : // if entry is not empty - split it by the ',' character and trim spaces
+                                     InfoGenres.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToArray();
 
                 // cover image
                 if (!_usingDefaultCoverImage) // save cover image
@@ -1071,7 +1072,7 @@ namespace AudioRecorder
             MoveTempFile(tempPath, mp3Path);
 
             // once we finished conversion, write metadata to a new file
-            WriteMetadata();
+            WriteMetadata(mp3Path);
 
             // switch the state and toggle the progress bar
             _state = AppState.Idle;
@@ -1129,7 +1130,7 @@ namespace AudioRecorder
             ToggleConversionPanel(false);
 
             // once we finished conversion, write metadata to a new file
-            WriteMetadata();
+            WriteMetadata(wavPath);
         }
 
         private void EraseTempFile(string tempPath)
